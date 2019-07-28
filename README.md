@@ -1,4 +1,4 @@
-# TimeRun
+![TimeRun](https://user-images.githubusercontent.com/50187675/62002266-8f926b80-b0ce-11e9-9e54-3b7eeb3a2ae1.png)
 
 TimeRun is a [Python](https://www.python.org) library for elapsed time measurement.
 
