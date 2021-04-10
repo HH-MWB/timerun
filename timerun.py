@@ -1,205 +1,290 @@
-# -*- coding: utf-8 -*-
-"""
-TimeRun is a Python library for elapsed time measurement.
-"""
+"""TimeRun is an elapsed time measurement library."""
 
-from time import perf_counter
-from time import process_time
-from enum import unique
-from enum import IntEnum
-from contextlib import contextmanager
-from functools import partial
-from functools import wraps
+from __future__ import annotations
 
-__version__ = '0.1'
-__license__ = 'MIT'
+from contextlib import ContextDecorator
+from dataclasses import dataclass
+from datetime import timedelta
+from time import perf_counter_ns, process_time_ns
+from typing import Callable, List, Optional, Tuple
+
+__all__: Tuple[str, ...] = (
+    # -- Core --
+    "ElapsedTime",
+    "ElapsedTimeMeasurer",
+    "ElapsedTimeCatcher",
+    # -- Exceptions --
+    "TimeRunException",
+    "MeasurerNotLaunched",
+    "NoElapsedTimeCaptured",
+)
+
+__version__: str = "0.2.0"
 
 
-###############################################################################
-# Elapsed Time Estimator ######################################################
-###############################################################################
+# =========================================================================== #
+#                                 Exceptions                                  #
+# --------------------------------------------------------------------------- #
+#                                                                             #
+# All invalid behavior of using timerun classes, functions should be convert  #
+# to an exception and raised.                                                 #
+#                                                                             #
+# In order to make the exceptions be easier managed, all exceptions created   #
+# for timerun library will extend from a base exception ``TimeRunException``. #
+#                                                                             #
+# =========================================================================== #
 
 
-class ETE(object):
-    """Elapsed Time Estimator
+class TimeRunException(Exception):
+    """Based exception for all error raised from ``timerun``."""
 
-    Elapsed Time Estimator uses the encapsulation of perf_counter function and
-    process_time function to measure elapsed time.
 
-    Attributes:
-        _timer: a function with the highest available resolution to measure a
-                short duration.
-        _start: a value in fractional seconds recorded from the last calling of
-                the launch function.
+class MeasurerNotLaunched(TimeRunException):
+    """Measurer Not Launched Exception"""
 
+    def __init__(self) -> None:
+        super().__init__("Measurer has not been launched yet.")
+
+
+class NoElapsedTimeCaptured(TimeRunException):
+    """No Elapsed Time Captured Exception"""
+
+    def __init__(self) -> None:
+        super().__init__("No duration has been captured yet.")
+
+
+# =========================================================================== #
+#                                Elapsed Time                                 #
+# --------------------------------------------------------------------------- #
+#                                                                             #
+# In Python, class datetime.timedelta is a duration expressing the difference #
+# between two date, time, or datetime instances to microsecond resolution.    #
+#                                                                             #
+# However, the highest available resolution measurer provided by Python can   #
+# measure a short duration in nanoseconds.                                    #
+#                                                                             #
+# Thus, there is a need to have a class which can represent elapsed time in   #
+# nanoseconds or a higher resolution.                                         #
+#                                                                             #
+# =========================================================================== #
+
+
+@dataclass(init=True, repr=False, eq=True, order=True, frozen=True)
+class ElapsedTime:
+    """Elapsed Time
+
+    An immutable object represent elapsed time in nanoseconds.
+
+    Attributes
+    ----------
+    nanoseconds : int
+        Expressing the elapsed time in nanoseconds.
+    timedelta : timedelta
+        The duration in timedelta type. May lose accuracy.
+
+    Examples
+    --------
+    >>> t = ElapsedTime(10)
+    >>> t
+    ElapsedTime(nanoseconds=10)
+    >>> print(t)
+    0:00:00.000000010
     """
 
-    def __init__(self, count_sleep=True):
-        """Initialize Elapsed Time Estimator.
+    __slots__ = ["nanoseconds"]
 
-        This method will select a time measurement function based on whether
-        the user would like to count time elapsed during sleep or not.
+    nanoseconds: int
 
-        Parameters:
-            count_sleep: An optional boolean variable express if the time
-                         elapsed during sleep should be counted or not.
+    @property
+    def timedelta(self) -> timedelta:
+        """The duration converted from nanoseconds to timedelta type."""
+        return timedelta(microseconds=self.nanoseconds // int(1e3))
 
+    def __str__(self) -> str:
+        integer_part = timedelta(seconds=self.nanoseconds // int(1e9))
+        decimal_part = self.nanoseconds % int(1e9)
+
+        if decimal_part == 0:
+            return str(integer_part)
+        return f"{integer_part}.{decimal_part:09}"
+
+    def __repr__(self) -> str:
+        return f"ElapsedTime(nanoseconds={self.nanoseconds})"
+
+
+# =========================================================================== #
+#                            Elapsed Time Measurer                            #
+# --------------------------------------------------------------------------- #
+#                                                                             #
+# Based on PEP 418, Python provides performance counter and process time      #
+# functions to measure a short duration of time elapsed.                      #
+#                                                                             #
+# Based on PEP 564, Python provides new function with nanosecond resolution.  #
+#                                                                             #
+# Ref:                                                                        #
+#   *  https://www.python.org/dev/peps/pep-0418/                              #
+#   *  https://www.python.org/dev/peps/pep-0564/                              #
+#                                                                             #
+# =========================================================================== #
+
+
+class ElapsedTimeMeasurer:
+    """Elapsed Time Measurer
+
+    A measurer with the highest available resolution (in nanoseconds) to
+    measure elapsed time. It can include or exclude the sleeping time.
+
+    Parameters
+    ----------
+    count_sleep : bool, optional
+        An optional boolean variable express if the time elapsed during
+        sleep should be counted or not.
+
+    Methods
+    -------
+    launch
+        Launch or relaunch Elapsed Time Measurer.
+    elapse
+        Get elapsed time from latest launch point.
+
+    Examples
+    --------
+    >>> m = ElapsedTimeMeasurer()
+    >>> m.launch()
+    >>> m.elapse()
+    ElapsedTime(nanoseconds=100)
+    """
+
+    __slots__ = ["_measure", "_start"]
+
+    def __init__(self, count_sleep: Optional[bool] = None) -> None:
+        if count_sleep is None:
+            count_sleep = True
+
+        self._measure: Callable[[], int] = (
+            perf_counter_ns if count_sleep else process_time_ns
+        )
+
+    def launch(self) -> None:
+        """Launch or relaunch Elapsed Time Measurer.
+
+        The calling of this method will either set the current state to
+        the private attribute ``_start`` or overwrite it.
+
+        The measurer will only record the value from the latest calling
+        and drop all previous values.
         """
-        self._timer = perf_counter if count_sleep else process_time
+        self._start: int = self._measure()
 
-    def launch(self):
-        """Launch or relaunch Elapsed Time Estimator.
-
-        The calling of this method will either set the current state to the
-        '_start' attribute or rewrite the '_start' attribute. The Estimator
-        will only record the value from the latest calling and drop all
-        previous values.
-
-        """
-        self._start = self._timer()
-
-    def elapse(self):
+    def elapse(self) -> ElapsedTime:
         """Get elapsed time from latest launch point.
 
-        Returns:
-            A float number for time elapsed in fractional seconds.
+        Returns
+        -------
+        ElapsedTime
+            The elapsed time between the launch point and now.
 
-        Raises:
-            AttributeError: An error occurred by accessing the launch point,
-                            which is caused by the current Elapsed Time
-                            Estimator not been launched after initialization.
-
+        Raises
+        ------
+        MeasurerNotLaunched
+            Error occurred by accessing the launch point, which normally
+            because of the measurer has not been launched before.
         """
         try:
-            return self._timer() - self._start
-        except AttributeError:
-            raise AttributeError('timer has not been launched')
+            return ElapsedTime(self._measure() - self._start)
+        except AttributeError as e:
+            raise MeasurerNotLaunched from e
 
 
-###############################################################################
-# Elapsed Time Formatter ######################################################
-###############################################################################
+# =========================================================================== #
+#                            Elapsed Time Catcher                             #
+# --------------------------------------------------------------------------- #
+#                                                                             #
+# For the most use case, user would just want to measure the elapsed time for #
+# a run of code block or function.                                            #
+#                                                                             #
+# It would be more Pythonic if user can measure a code block by using context #
+# manager and measure a function by using decorator.                          #
+#                                                                             #
+# =========================================================================== #
 
 
-@unique
-class TimeUnit(IntEnum):
-    """Units of Time Delta
+class ElapsedTimeCatcher(ContextDecorator):
+    """Elapsed Time Catcher
 
-    The units of time delta are defined in the following way:
-        the name of the unit - number of seconds that this unit has.
+    A context decorator can capture measured elapsed time into list and
+    reuse the result afterwards.
 
-    Attributes:
-        SEC: second
-        MIN: minute - has 60 seconds
-        HRS: hour   - has 3,600 (60 * 60) seconds
-        DAY: day    - has 86,400 (24 * 60 * 60) seconds
+    Attributes
+    ----------
+    durations : List[ElapsedTime]
+        The captured duration times.
+    duration : ElapsedTime
+        The last captured duration time.
 
+    Parameters
+    ----------
+    count_sleep : bool, optional
+        An optional boolean variable express if the time elapsed during
+        sleep should be counted or not.
+    max_storage : int, optional
+        The max length for capturing storage, by default infinity.
+    durations : List[ElapsedTime], optional
+        A list be used to save captured results. By default init one.
+
+    Examples
+    --------
+    >>> with ElapsedTimeCatcher() as catcher:
+    ...     pass
+    >>> print(catcher.duration)
+    0:00:00.000000100
+
+    >>> catcher = ElapsedTimeCatcher()
+    >>> @catcher
+    ... def func():
+    ...     pass
+    >>> func()
+    >>> print(catcher.duration)
+    0:00:00.000000100
     """
 
-    SEC = 1
-    MIN = 60 * SEC
-    HRS = 60 * MIN
-    DAY = 24 * HRS
+    __slots__ = ["_measurer", "_max_storage", "durations"]
 
+    def __init__(
+        self,
+        count_sleep: Optional[bool] = None,
+        max_storage: Optional[int] = None,
+        durations: Optional[List[ElapsedTime]] = None,
+    ) -> None:
+        self._measurer: ElapsedTimeMeasurer = ElapsedTimeMeasurer(count_sleep)
+        self._max_storage = max_storage
+        self.durations: List[ElapsedTime] = (
+            durations if durations is not None else []
+        )
 
-class ETF(object):
-    """Elapsed Time Formatter
+    @property
+    def duration(self) -> ElapsedTime:
+        """The last captured duration time.
 
-    Elapsed Time Formatter is used to format time from seconds into a nicely
-    printable string that involves other units of time, i.e., days, hours,
-    minutes, seconds, and nanoseconds.
-
-    Attributes:
-        _d: an integer represents days passed for a given time
-        _h: an integer represents hours passed for a given time
-        _m: an integer represents minutes passed for a given time
-        _s: an integer represents seconds passed for a given time
-        _n: an integer represents nano seconds passed for a given time
-
-    """
-
-    def __init__(self, time):
-        """Initialize Elapsed Time Formatter.
-
-        This method takes time in seconds and converts it into the combination
-        of five units: days, hours, minutes, seconds, and nanoseconds. Parts
-        smaller than nanoseconds will be rounded off.
-
-        Parameters:
-            time: a floating number, which represents time in seconds
-
+        Raises
+        ------
+        NoElapsedTimeCaptured
+            Error occurred by accessing the empty durations list, which
+            normally because of the measurer has not been triggered yet.
         """
-        self._d, rem = divmod(int(time), TimeUnit.DAY)
-        self._h, rem = divmod(rem, TimeUnit.HRS)
-        self._m, self._s = divmod(rem, TimeUnit.MIN)
-        self._n = round((time - int(time)) * 1e9)
-
-    def __str__(self):
-        """Format String
-
-        This method takes the result from the attributes and converts it into a
-        nicely printable string. It also detects if the given time is less than
-        one day, and remove the day part from the string if it is.
-
-        """
-        time = '{hrs:02}:{min:02}:{sec:02}.{ns:09}'.format(
-                hrs=self._h, min=self._m, sec=self._s, ns=self._n)
-        return '{} days {}'.format(self._d, time) if self._d > 0 else time
-
-
-###############################################################################
-# Shortcut to Time Measurement ################################################
-###############################################################################
-
-
-@contextmanager
-def time_code(label, count_sleep=True):
-    """Time a Code Block
-
-    This function is used to measure the time used for a block of code to run
-    and print out the time in a nicely printable string with the given name of
-    the code block.
-
-    Parameters:
-        count_sleep: An optional boolean variable express if the time elapsed
-                     during sleep should be counted or not.
-
-    """
-    timer = ETE(count_sleep=count_sleep)
-    timer.launch()
-    try:
-        yield
-    finally:
-        time = ETF(time=timer.elapse())
-        print('{} - {}'.format(label, time))
-
-
-def time_func(func=None, count_sleep=True):
-    """Time a Function
-
-    This function is used to measure the time used for a function to run and
-    print out the time in a nicely printable string with the name of the
-    measured function.
-
-    Parameters:
-        count_sleep: An optional boolean variable express if the time elapsed
-                     during sleep should be counted or not.
-
-    """
-    if func is None:
-        return partial(time_func, count_sleep=count_sleep)
-
-    label = '{}.{}'.format(func.__module__, func.__name__)
-    timer = ETE(count_sleep=count_sleep)
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        timer.launch()
         try:
-            r = func(*args, **kwargs)
-        finally:
-            time = ETF(time=timer.elapse())
-            print('{} - {}'.format(label, time))
-        return r
+            return self.durations[-1]
+        except IndexError as e:
+            raise NoElapsedTimeCaptured from e
 
-    return wrapper
+    def __enter__(self) -> ElapsedTimeCatcher:
+        self._measurer.launch()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.durations.append(self._measurer.elapse())
+        if (
+            self._max_storage is not None
+            and len(self.durations) > self._max_storage
+        ):
+            self.durations = self.durations[1:]

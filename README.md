@@ -1,21 +1,14 @@
 ![TimeRun](https://user-images.githubusercontent.com/50187675/62002266-8f926b80-b0ce-11e9-9e54-3b7eeb3a2ae1.png)
 
-TimeRun is a [Python](https://www.python.org) library for elapsed time measurement.
+TimeRun is a simple, yet elegant elapsed time measurement library for [Python](https://www.python.org). It is distributed as a single file module and has no dependencies other than the [Python Standard Library](https://docs.python.org/3/library/).
 
-* Measure elapsed time and format output in **one line** yet providing the highest resolution for time measurement
-* All in a single file with no dependencies other than [Python Standard Library](https://docs.python.org/3/library/)
+- **Elapsed Time**: Customized time delta which represent elapsed time in nanoseconds.
+- **Elapsed Time Measurer**: Measure a time elapsed with the highest available resolution.
+- **Elapsed Time Catcher**: Convenient syntax to capture measured result and save it.
 
-## Features
+## Requirements
 
-* Elapsed Time Estimator
-    * Measure elapsed time with sleep
-    * Measure elapsed time without sleep
-* Elapsed Time Formatter
-    * Format time into hours, minutes, seconds and nanoseconds
-    * Hide days part if time is less than 1 day 
-* Shortcut to Time Measurement
-    * Measure elapsed time for a code block
-    * Measure elapsed time for a function
+- Python 3.6+
 
 ## Installation
 
@@ -33,39 +26,29 @@ python setup.py install
 
 ## Examples
 
-### Measure code block execution time
+### Measure A Code Block
 
 ```python
-from timerun import time_code
-
-with time_code('countdown'):
-    n = 1e6
-    while n > 0:
-        n -= 1
+>>> from timerun import ElapsedTimeCatcher
+>>> with ElapsedTimeCatcher() as catcher:
+...     pass  # put your code here
+>>> print(catcher.duration)
+0:00:00.000000100
 ```
 
-```
-countdown - 00:00:00.110983022
-```
-
-### Measure function execution time
+### Measure A Function
 
 ```python
-from timerun import time_func
-
-@time_func
-def countdown():
-    n = 1e6
-    while n > 0:
-        n -= 1
-
-countdown()
-```
-
-```
-__main__.countdown - 00:00:00.069651527
+>>> from timerun import ElapsedTimeCatcher
+>>> catcher = ElapsedTimeCatcher()
+>>> @catcher
+... def func():
+...     pass  # put your code here
+>>> func()
+>>> print(catcher.duration)
+0:00:00.000000100
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/HH-MWB/timerun/blob/master/LICENSE) file for details
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/HH-MWB/timerun/blob/master/LICENSE) file for details.
