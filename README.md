@@ -3,14 +3,16 @@
 TimeRun is a simple, yet elegant elapsed time measurement library for [Python](https://www.python.org). It is distributed as a single file module and has no dependencies other than the [Python Standard Library](https://docs.python.org/3/library/).
 
 - **Elapsed Time**: Customized time delta which represent elapsed time in nanoseconds.
-- **Elapsed Time Measurer**: Measure a time elapsed with the highest available resolution.
-- **Elapsed Time Catcher**: Convenient syntax to capture measured result and save it.
+- **Stopwatch**: An elapsed time measurer with the highest available resolution.
+- **Timer**: Convenient syntax to capture measured elapsed time result and save it.
 
-## Requirements
+## Setup
 
-- Python 3.6+
+### Prerequisites
 
-## Installation
+The only prerequist for using TimeRun is running **Python 3.7+**.
+
+### Installation
 
 Install TimeRun from [Python Package Index](https://pypi.org/project/timerun/)
 
@@ -24,28 +26,28 @@ Install TimeRun from [Source Code](https://github.com/HH-MWB/timerun)
 python setup.py install
 ```
 
-## Examples
+## Quickstart
 
-### Measure A Code Block
+### Measure Code Block
 
 ```python
->>> from timerun import ElapsedTimeCatcher
->>> with ElapsedTimeCatcher() as catcher:
+>>> from timerun import Timer
+>>> with Timer() as timer:
 ...     pass  # put your code here
->>> print(catcher.duration)
+>>> print(timer.duration)
 0:00:00.000000100
 ```
 
-### Measure A Function
+### Measure Function
 
 ```python
->>> from timerun import ElapsedTimeCatcher
->>> catcher = ElapsedTimeCatcher()
->>> @catcher
+>>> from timerun import Timer
+>>> timer = Timer()
+>>> @timer
 ... def func():
 ...     pass  # put your code here
 >>> func()
->>> print(catcher.duration)
+>>> print(timer.duration)
 0:00:00.000000100
 ```
 

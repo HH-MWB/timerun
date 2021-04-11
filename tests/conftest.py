@@ -6,23 +6,125 @@ from unittest.mock import Mock
 
 from pytest import MonkeyPatch, fixture
 
-from timerun import ElapsedTime, ElapsedTimeCatcher, ElapsedTimeMeasurer
+from timerun import ElapsedTime, Stopwatch, Timer
 
 __all__: Tuple[str, ...] = (
+    # -- Patcheres --
+    "patch_clock",
+    "patch_split",
+    # -- Initiated Instances --
+    "stopwatch",
+    "timer",
     # -- Elapsed Time --
     "elapsed_1_ns",
     "elapsed_100_ns",
     "elapsed_1_ms",
     "elapsed_1_pt_5_ms",
     "elapsed_1_sec",
-    # -- Elapsed Time Measurer --
-    "patch_measure",
-    "unlaunched_measurer",
-    "launched_measurer",
-    # -- Elapsed Time Catcher --
-    "patch_elapse",
-    "unlimited_catcher",
 )
+
+
+# =========================================================================== #
+#                                  Patcheres                                  #
+# =========================================================================== #
+
+
+@fixture
+def patch_clock(monkeypatch: MonkeyPatch) -> Callable[[int], ContextManager]:
+    """Patch the clock method in Stopwatch.
+
+    Parameters
+    ----------
+    monkeypatch : MonkeyPatch
+        Fixture been used to patch clock method.
+
+    Returns
+    -------
+    Callable[[int], ContextManager]
+        A context manager takes intger argument and patch that value as
+        the return value of the clock method.
+
+    Examples
+    --------
+    >>> with patch_clock(elapsed_ns=1):
+    ...     pass
+    """
+
+    @contextmanager
+    def patch(elapsed_ns: int) -> Iterator[None]:
+        """Patch clock method through monkeypatch context.
+
+        Parameters
+        ----------
+        elapsed_ns : int
+            Value should be returned by the clock method.
+        """
+        monkeypatch.setattr(Stopwatch, "_clock", lambda self: elapsed_ns)
+        yield
+
+    return patch
+
+
+@fixture
+def patch_split(
+    monkeypatch: MonkeyPatch,
+) -> Callable[[Iterable[int]], ContextManager]:
+    """Patch the split method in Timer.
+
+    Parameters
+    ----------
+    monkeypatch : MonkeyPatch
+        Fixture been used to patch split method.
+
+    Returns
+    -------
+    Callable[[Iterable[int]], ContextManager]
+        A context manager takes a list of intgers as nanoseconds and
+        patch those as the return values of the elapse method.
+
+    Examples
+    --------
+    >>> with patch_split(elapsed_times=[100, 200, 300]):
+    ...     pass
+    """
+
+    @contextmanager
+    def patch(elapsed_times: Iterable[int]) -> Iterator[None]:
+        """Patch split method through monkeypatch context.
+
+        Parameters
+        ----------
+        elapsed_times : Iterable[int]
+            List of nanoseconds should be returned by the split method.
+        """
+        mock_stopwatch = Mock(spec=["reset", "split"])
+        mock_stopwatch.split.side_effect = [
+            ElapsedTime(nanoseconds=t) for t in elapsed_times
+        ]
+
+        monkeypatch.setattr(Timer, "_stopwatch", mock_stopwatch)
+        yield
+
+    return patch
+
+
+# =========================================================================== #
+#                             Initiated Instances                             #
+# =========================================================================== #
+
+
+@fixture
+def stopwatch() -> Stopwatch:
+    """A newly created Stopwatch started at time ``0``."""
+    watch: Stopwatch = Stopwatch()
+    watch._start = 0
+    return watch
+
+
+@fixture
+def timer() -> Timer:
+    """A newly created Timer with unlimited storage size."""
+    return Timer()
 
 
 # =========================================================================== #
@@ -58,145 +160,3 @@ def elapsed_1_pt_5_ms() -> ElapsedTime:
 def elapsed_1_sec() -> ElapsedTime:
     """Elapsed Time of 1 second."""
     return ElapsedTime(nanoseconds=int(1e9))
-
-
-# =========================================================================== #
-#                            Elapsed Time Measurer                            #
-# =========================================================================== #
-
-
-@fixture
-def patch_measure(monkeypatch: MonkeyPatch) -> Callable[[int], ContextManager]:
-    """Patch the measure method in ElapsedTimeMeasurer.
-
-    Parameters
-    ----------
-    monkeypatch : MonkeyPatch
-        Fixture been used to patch measure method.
-
-    Returns
-    -------
-    Callable[[int], ContextManager]
-        A context manager takes intger argument and patch that value as
-        the return value of the measure method.
-
-    Examples
-    --------
-    >>> with patch_measure(elapsed_ns=1):
-    ...     pass
-    """
-
-    @contextmanager
-    def patch(elapsed_ns: int) -> Iterator[None]:
-        """Patch measure method through monkeypatch context.
-
-        Parameters
-        ----------
-        elapsed_ns : int
-            Value should be returned by the measure method.
-        """
-        monkeypatch.setattr(
-            ElapsedTimeMeasurer, "_measure", lambda self: elapsed_ns
-        )
-        yield
-
-    return patch
-
-
-@fixture
-def unlaunched_measurer() -> ElapsedTimeMeasurer:
-    """Unlaunced Elapsed Time Measurer
-
-    A newly created, unlaunched elapsed time measurer.
-
-    Returns
-    -------
-    ElapsedTimeMeasurer
-        A newly created, unlaunched elapsed time measurer.
-    """
-    return ElapsedTimeMeasurer()
-
-
-@fixture
-def launched_measurer(
-    patch_measure: Callable, unlaunched_measurer: ElapsedTimeMeasurer
-) -> ElapsedTimeMeasurer:
-    """Launched Elapsed Time Measurer
-
-    A elapsed time measurer which launched at time ``0``.
-
-    Parameters
-    ----------
-    patch_measure : Callable
-        Patcher been used to set the launching time at ``0``.
-    unlaunched_measurer : ElapsedTimeMeasurer
-        A newly created, unlaunched elapsed time measurer.
-
-    Returns
-    -------
-    ElapsedTimeMeasurer
-        A newly created elapsed time measurer launched at time ``0``.
-    """
-    with patch_measure(elapsed_ns=0):
-        unlaunched_measurer.launch()
-    return unlaunched_measurer
-
-
-# =========================================================================== #
-#                            Elapsed Time Catcher                             #
-# =========================================================================== #
-
-
-@fixture
-def patch_elapse(
-    monkeypatch: MonkeyPatch,
-) -> Callable[[Iterable[int]], ContextManager]:
-    """Patch the elapse method in ElapsedTimeCatcher.
-
-    Parameters
-    ----------
-    monkeypatch : MonkeyPatch
-        Fixture been used to patch measure method.
-
-    Returns
-    -------
-    Callable[[Iterable[int]], ContextManager]
-        A context manager takes a list of intgers as nanoseconds and
-        patch those as the return values of the elapse method.
-
-    Examples
-    --------
-    >>> with patch_elapse(elapsed_times=[100, 200, 300]):
-    ...     pass
-    """
-
-    @contextmanager
-    def patch(elapsed_times: Iterable[int]) -> Iterator[None]:
-        """Patch elapse method through monkeypatch context.
-
-        Parameters
-        ----------
-        elapsed_times : Iterable[int]
-            List of nanoseconds should be returned by the elapse method.
-        """
-        mock_measurer = Mock(spec=["launch", "elapse"])
-        mock_measurer.elapse.side_effect = [
-            ElapsedTime(nanoseconds=t) for t in elapsed_times
-        ]
-
-        monkeypatch.setattr(ElapsedTimeCatcher, "_measurer", mock_measurer)
-        yield
-
-    return patch
-
-
-@fixture
-def unlimited_catcher() -> ElapsedTimeCatcher:
-    """Elapsed Time Catcher with unlimited storage size.
-
-    Returns
-    -------
-    ElapsedTimeCatcher
-        A newly created elapsed time catcher.
-    """
-    return ElapsedTimeCatcher()

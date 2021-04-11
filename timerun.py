@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
+from collections import deque
 from contextlib import ContextDecorator
 from dataclasses import dataclass
 from datetime import timedelta
 from time import perf_counter_ns, process_time_ns
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Deque, List, Optional, Tuple, Union
 
 __all__: Tuple[str, ...] = (
     # -- Core --
     "ElapsedTime",
-    "ElapsedTimeMeasurer",
-    "ElapsedTimeCatcher",
+    "Stopwatch",
+    "Timer",
     # -- Exceptions --
     "TimeRunException",
-    "MeasurerNotLaunched",
-    "NoElapsedTimeCaptured",
+    "ElapsedTimeNotCaptured",
 )
 
 __version__: str = "0.2.0"
@@ -39,18 +39,11 @@ class TimeRunException(Exception):
     """Based exception for all error raised from ``timerun``."""
 
 
-class MeasurerNotLaunched(TimeRunException):
-    """Measurer Not Launched Exception"""
+class ElapsedTimeNotCaptured(TimeRunException):
+    """Elapsed Time Not Captured Exception"""
 
     def __init__(self) -> None:
-        super().__init__("Measurer has not been launched yet.")
-
-
-class NoElapsedTimeCaptured(TimeRunException):
-    """No Elapsed Time Captured Exception"""
-
-    def __init__(self) -> None:
-        super().__init__("No duration has been captured yet.")
+        super().__init__("Elapsed Time Not Captured.")
 
 
 # =========================================================================== #
@@ -63,7 +56,7 @@ class NoElapsedTimeCaptured(TimeRunException):
 # However, the highest available resolution measurer provided by Python can   #
 # measure a short duration in nanoseconds.                                    #
 #                                                                             #
-# Thus, there is a need to have a class which can represent elapsed time in   #
+# Thus, there is a needs to have class which can represent elapsed time in    #
 # nanoseconds or a higher resolution.                                         #
 #                                                                             #
 # =========================================================================== #
@@ -80,7 +73,13 @@ class ElapsedTime:
     nanoseconds : int
         Expressing the elapsed time in nanoseconds.
     timedelta : timedelta
-        The duration in timedelta type. May lose accuracy.
+        The duration in timedelta type. This attribute may not maintain
+        the original accuracy.
+
+    Parameters
+    ----------
+    nanoseconds : int
+        Expressing the elapsed time in nanoseconds.
 
     Examples
     --------
@@ -95,11 +94,6 @@ class ElapsedTime:
 
     nanoseconds: int
 
-    @property
-    def timedelta(self) -> timedelta:
-        """The duration converted from nanoseconds to timedelta type."""
-        return timedelta(microseconds=self.nanoseconds // int(1e3))
-
     def __str__(self) -> str:
         integer_part = timedelta(seconds=self.nanoseconds // int(1e9))
         decimal_part = self.nanoseconds % int(1e9)
@@ -111,9 +105,14 @@ class ElapsedTime:
     def __repr__(self) -> str:
         return f"ElapsedTime(nanoseconds={self.nanoseconds})"
 
+    @property
+    def timedelta(self) -> timedelta:
+        """The duration converted from nanoseconds to timedelta type."""
+        return timedelta(microseconds=self.nanoseconds // int(1e3))
+
 
 # =========================================================================== #
-#                            Elapsed Time Measurer                            #
+#                                  Stopwatch                                  #
 # --------------------------------------------------------------------------- #
 #                                                                             #
 # Based on PEP 418, Python provides performance counter and process time      #
@@ -128,11 +127,12 @@ class ElapsedTime:
 # =========================================================================== #
 
 
-class ElapsedTimeMeasurer:
-    """Elapsed Time Measurer
+class Stopwatch:
+    """Stopwatch
 
-    A measurer with the highest available resolution (in nanoseconds) to
-    measure elapsed time. It can include or exclude the sleeping time.
+    A stopwatch with the highest available resolution (in nanoseconds)
+    to measure elapsed time. It can be set to include or exclude the
+    sleeping time.
 
     Parameters
     ----------
@@ -142,83 +142,62 @@ class ElapsedTimeMeasurer:
 
     Methods
     -------
-    launch
-        Launch or relaunch Elapsed Time Measurer.
-    elapse
-        Get elapsed time from latest launch point.
+    reset
+        Restart the stopwatch by set the starting time to current time.
+    split
+        Get elapsed time between now and the starting time.
 
     Examples
     --------
-    >>> m = ElapsedTimeMeasurer()
-    >>> m.launch()
-    >>> m.elapse()
+    >>> stopwatch = Stopwatch()
+    >>> stopwatch.reset()
+    >>> stopwatch.split()
     ElapsedTime(nanoseconds=100)
     """
 
-    __slots__ = ["_measure", "_start"]
+    __slots__ = ["_clock", "_start"]
 
     def __init__(self, count_sleep: Optional[bool] = None) -> None:
         if count_sleep is None:
             count_sleep = True
 
-        self._measure: Callable[[], int] = (
+        self._clock: Callable[[], int] = (
             perf_counter_ns if count_sleep else process_time_ns
         )
 
-    def launch(self) -> None:
-        """Launch or relaunch Elapsed Time Measurer.
+        self._start: int = self._clock()
 
-        The calling of this method will either set the current state to
-        the private attribute ``_start`` or overwrite it.
+    def reset(self) -> None:
+        """Reset the starting time to current time."""
+        self._start = self._clock()
 
-        The measurer will only record the value from the latest calling
-        and drop all previous values.
-        """
-        self._start: int = self._measure()
-
-    def elapse(self) -> ElapsedTime:
-        """Get elapsed time from latest launch point.
-
-        Returns
-        -------
-        ElapsedTime
-            The elapsed time between the launch point and now.
-
-        Raises
-        ------
-        MeasurerNotLaunched
-            Error occurred by accessing the launch point, which normally
-            because of the measurer has not been launched before.
-        """
-        try:
-            return ElapsedTime(self._measure() - self._start)
-        except AttributeError as e:
-            raise MeasurerNotLaunched from e
+    def split(self) -> ElapsedTime:
+        """Get elapsed time between now and the starting time."""
+        return ElapsedTime(self._clock() - self._start)
 
 
 # =========================================================================== #
-#                            Elapsed Time Catcher                             #
+#                                    Timer                                    #
 # --------------------------------------------------------------------------- #
 #                                                                             #
 # For the most use case, user would just want to measure the elapsed time for #
 # a run of code block or function.                                            #
 #                                                                             #
-# It would be more Pythonic if user can measure a code block by using context #
-# manager and measure a function by using decorator.                          #
+# It would be more clean and elegant if user can measure a function by using  #
+# decoratora and measure a code block by using context manager.               #
 #                                                                             #
 # =========================================================================== #
 
 
-class ElapsedTimeCatcher(ContextDecorator):
-    """Elapsed Time Catcher
+class Timer(ContextDecorator):
+    """Timer
 
-    A context decorator can capture measured elapsed time into list and
-    reuse the result afterwards.
+    A context decorator can capture and save the measured elapsed time.
 
     Attributes
     ----------
-    durations : List[ElapsedTime]
-        The captured duration times.
+    durations : Tuple[ElapsedTime, ...]
+        The captured duration times as a tuple.
     duration : ElapsedTime
         The last captured duration time.
 
@@ -227,40 +206,64 @@ class ElapsedTimeCatcher(ContextDecorator):
     count_sleep : bool, optional
         An optional boolean variable express if the time elapsed during
         sleep should be counted or not.
-    max_storage : int, optional
+    storage : List[ElapsedTime] or Deque[ElapsedTime], optional
+        A list be used to save captured results. By default initiate a
+        new one using deque.
+    max_len : int, optional
         The max length for capturing storage, by default infinity.
-    durations : List[ElapsedTime], optional
-        A list be used to save captured results. By default init one.
+        Notice that this parameter will only been used when this object
+        need to initiate a new storage queue.
 
     Examples
     --------
-    >>> with ElapsedTimeCatcher() as catcher:
+    >>> with Timer() as timer:
     ...     pass
-    >>> print(catcher.duration)
+    >>> print(timer.duration)
     0:00:00.000000100
 
-    >>> catcher = ElapsedTimeCatcher()
-    >>> @catcher
+    >>> timer = Timer()
+    >>> @timer
     ... def func():
     ...     pass
     >>> func()
-    >>> print(catcher.duration)
+    >>> print(timer.duration)
     0:00:00.000000100
     """
 
-    __slots__ = ["_measurer", "_max_storage", "durations"]
+    __slots__ = ["_stopwatch", "_durations"]
 
     def __init__(
         self,
         count_sleep: Optional[bool] = None,
-        max_storage: Optional[int] = None,
-        durations: Optional[List[ElapsedTime]] = None,
+        storage: Optional[Union[List[ElapsedTime], Deque[ElapsedTime]]] = None,
+        max_len: Optional[int] = None,
     ) -> None:
-        self._measurer: ElapsedTimeMeasurer = ElapsedTimeMeasurer(count_sleep)
-        self._max_storage = max_storage
-        self.durations: List[ElapsedTime] = (
-            durations if durations is not None else []
+        self._stopwatch: Stopwatch = Stopwatch(count_sleep)
+        self._durations: Union[List[ElapsedTime], Deque[ElapsedTime]] = (
+            storage if storage is not None else deque(maxlen=max_len)
         )
+
+    def __enter__(self) -> Timer:
+        self._stopwatch.reset()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        duration: ElapsedTime = self._stopwatch.split()
+        self._durations.append(duration)
+
+    @property
+    def durations(self) -> Tuple[ElapsedTime, ...]:
+        """The captured duration times as a tuple.
+
+        A tuple contains all captured duration times. Python can unpack
+        tuple into multiple variables.
+
+        Examples
+        --------
+        Given a timer ran twice. Captured duration times can be unpack:
+        >>> first_duration, second_duration = timer.durations
+        """
+        return tuple(self._durations)
 
     @property
     def duration(self) -> ElapsedTime:
@@ -273,18 +276,6 @@ class ElapsedTimeCatcher(ContextDecorator):
             normally because of the measurer has not been triggered yet.
         """
         try:
-            return self.durations[-1]
-        except IndexError as e:
-            raise NoElapsedTimeCaptured from e
-
-    def __enter__(self) -> ElapsedTimeCatcher:
-        self._measurer.launch()
-        return self
-
-    def __exit__(self, *exc) -> None:
-        self.durations.append(self._measurer.elapse())
-        if (
-            self._max_storage is not None
-            and len(self.durations) > self._max_storage
-        ):
-            self.durations = self.durations[1:]
+            return self._durations[-1]
+        except IndexError as error:
+            raise ElapsedTimeNotCaptured from error
