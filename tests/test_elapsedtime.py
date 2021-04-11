@@ -71,7 +71,7 @@ class TestTimedeltaAttribute:
     def test_microseconds_accuracy(self, elapsed_1_ms: ElapsedTime) -> None:
         """Test using ElapsedTime of 1 microsecond.
 
-        Given ElapsedTime of ``1`` microsecond, excpected timedelta is
+        Given ElapsedTime of ``1`` microsecond, expected timedelta is
         ``1`` microsecond.
 
         Parameters
@@ -86,7 +86,7 @@ class TestTimedeltaAttribute:
     ) -> None:
         """Test using ElapsedTime of 1.5 microseconds.
 
-        Given ElapsedTime of ``1.5`` microseconds excpected timedelta to
+        Given ElapsedTime of ``1.5`` microseconds expected timedelta to
         be ``1`` microsecond, because of the accuracy lost.
 
         Parameters
@@ -105,7 +105,7 @@ class TestStr:
     ) -> None:
         """Test elapsed time in seconds is in decimal.
 
-        Given a elapsed time, expected to see the part after seconds as
+        Given an elapsed time, expected to see the part after seconds as
         a decimal part.
 
         Parameters
@@ -120,8 +120,8 @@ class TestStr:
     ) -> None:
         """Test elapsed time in seconds is an integer.
 
-        Given a elapsed time in integer seconds, the decimal part should
-        be hidden.
+        Given an elapsed time in integer seconds, the decimal part
+        should be hidden.
 
         Parameters
         ----------
@@ -137,8 +137,8 @@ class TestRepr:
     def test_repr(self, elapsed_100_ns: ElapsedTime) -> None:
         """Test call function repr.
 
-        Given a ElapsedTime, call repr would get a output can be used to
-        re-create this ElapsedTime.
+        Given an ElapsedTime, call repr would get an output can be used
+        to re-create this ElapsedTime.
 
         Parameters
         ----------

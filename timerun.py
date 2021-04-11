@@ -1,4 +1,4 @@
-"""TimeRun is an elapsed time measurement library."""
+"""TimeRun is a Python library for elapsed time measurement."""
 
 from __future__ import annotations
 
@@ -26,20 +26,20 @@ __version__: str = "0.2.0"
 #                                 Exceptions                                  #
 # --------------------------------------------------------------------------- #
 #                                                                             #
-# All invalid behavior of using timerun classes, functions should be convert  #
-# to an exception and raised.                                                 #
+# The invalid behaviors of using the classes, functions in timerun should be  #
+# converted to an exception and raised.                                       #
 #                                                                             #
-# In order to make the exceptions be easier managed, all exceptions created   #
-# for timerun library will extend from a base exception ``TimeRunException``. #
+# To make exceptions be easier managed, all exceptions created for timerun    #
+# library will extend from a base exception ``TimeRunException``.             #
 #                                                                             #
 # =========================================================================== #
 
 
 class TimeRunException(Exception):
-    """Based exception for all error raised from ``timerun``."""
+    """Based exception for TimeRun"""
 
 
-class ElapsedTimeNotCaptured(TimeRunException):
+class ElapsedTimeNotCaptured(TimeRunException, AttributeError):
     """Elapsed Time Not Captured Exception"""
 
     def __init__(self) -> None:
@@ -56,7 +56,7 @@ class ElapsedTimeNotCaptured(TimeRunException):
 # However, the highest available resolution measurer provided by Python can   #
 # measure a short duration in nanoseconds.                                    #
 #                                                                             #
-# Thus, there is a needs to have class which can represent elapsed time in    #
+# Thus, there is a needs to have a class that can represent elapsed time in   #
 # nanoseconds or a higher resolution.                                         #
 #                                                                             #
 # =========================================================================== #
@@ -118,7 +118,7 @@ class ElapsedTime:
 # Based on PEP 418, Python provides performance counter and process time      #
 # functions to measure a short duration of time elapsed.                      #
 #                                                                             #
-# Based on PEP 564, Python provides new function with nanosecond resolution.  #
+# Based on PEP 564, Python got new time functions with nanosecond resolution. #
 #                                                                             #
 # Ref:                                                                        #
 #   *  https://www.python.org/dev/peps/pep-0418/                              #
@@ -143,7 +143,7 @@ class Stopwatch:
     Methods
     -------
     reset
-        Restart the stopwatch by set the starting time to current time.
+        Restart the stopwatch by set starting time to the current time.
     split
         Get elapsed time between now and the starting time.
 
@@ -180,11 +180,11 @@ class Stopwatch:
 #                                    Timer                                    #
 # --------------------------------------------------------------------------- #
 #                                                                             #
-# For the most use case, user would just want to measure the elapsed time for #
-# a run of code block or function.                                            #
+# For the most use case, the user would just want to measure the elapsed time #
+# for a run of code block or function.                                        #
 #                                                                             #
-# It would be more clean and elegant if user can measure a function by using  #
-# decoratora and measure a code block by using context manager.               #
+# It would be more clean and elegant if the user can measure a function by    #
+# using a decorator and measure a code block by using a context manager.      #
 #                                                                             #
 # =========================================================================== #
 
@@ -207,12 +207,12 @@ class Timer(ContextDecorator):
         An optional boolean variable express if the time elapsed during
         sleep should be counted or not.
     storage : List[ElapsedTime] or Deque[ElapsedTime], optional
-        A list be used to save captured results. By default initiate a
+        A list is used to save captured results. By default initiate a
         new one using deque.
     max_len : int, optional
         The max length for capturing storage, by default infinity.
-        Notice that this parameter will only been used when this object
-        need to initiate a new storage queue.
+        Notice that this parameter will only be used when this object
+        needs to initiate a new storage queue.
 
     Examples
     --------
@@ -260,7 +260,6 @@ class Timer(ContextDecorator):
 
         Examples
         --------
-        Given a timer ran twice. Captured duration times can be unpack:
         >>> first_duration, second_duration = timer.durations
         """
         return tuple(self._durations)
@@ -273,7 +272,7 @@ class Timer(ContextDecorator):
         ------
         NoElapsedTimeCaptured
             Error occurred by accessing the empty durations list, which
-            normally because of the measurer has not been triggered yet.
+            normally because the measurer has not been triggered yet.
         """
         try:
             return self._durations[-1]

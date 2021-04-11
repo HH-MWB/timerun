@@ -10,12 +10,12 @@ class TestInit:
     """Test suite for stopwatch initialization."""
 
     def test_include_sleep(self) -> None:
-        """Test initialize stopwatch take sleep in count."""
+        """Test initialize stopwatch take sleep in to count."""
         stopwatch: Stopwatch = Stopwatch(count_sleep=True)
         assert stopwatch._clock == perf_counter_ns
 
     def test_exclude_sleep(self) -> None:
-        """Test initialize stopwatch do not take sleep in count."""
+        """Test initialize stopwatch do not take sleep in to count."""
         stopwatch: Stopwatch = Stopwatch(count_sleep=False)
         assert stopwatch._clock == process_time_ns
 
@@ -32,13 +32,13 @@ class TestReset:
     def test_reset(self, patch_clock: Callable, stopwatch: Stopwatch) -> None:
         """Test to reset a stopwatch.
 
-        Expected to have a stopwatch which it's `_start` attribute is
-        not ``1``, but been reset to ``1`` after call ``reset`` method.
+        Expected to have a stopwatch whose `_start` attribute is not
+        ``1``, but been reset to ``1`` after call ``reset`` method.
 
         Parameters
         ----------
         patch_clock : Callable
-            Patcher been used to set the starting time at ``1``.
+            Patcher has been used to set the starting time at ``1``.
         stopwatch : Stopwatch
             A started Stopwatch, which will be reset.
         """
@@ -66,9 +66,9 @@ class TestSplit:
         Parameters
         ----------
         patch_clock : Callable
-            Patcher been used to set the clock time.
+            Patcher has been used to set the clock time.
         stopwatch : Stopwatch
-            A stopwatch which started at time ``0``.
+            A stopwatch started at time ``0``.
         elapsed_100_ns : ElapsedTime
             Elapsed Time of 100 nanoseconds.
         """
@@ -95,9 +95,9 @@ class TestSplit:
         Parameters
         ----------
         patch_clock : Callable
-            Patcher been used to set the clock time.
+            Patcher has been used to set the clock time.
         stopwatch : Stopwatch
-            A stopwatch which started at time ``0``.
+            A stopwatch started at time ``0``.
         elapsed_100_ns : ElapsedTime
             Elapsed Time of 100 nanoseconds.
         elapsed_1_ms : ElapsedTime

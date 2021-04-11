@@ -8,7 +8,7 @@ from timerun import ElapsedTime, ElapsedTimeNotCaptured, Timer
 
 
 class TestAsContextManager:
-    """Test suite for using Timer as context manager."""
+    """Test suite for using Timer as a context manager."""
 
     def test_single_run(
         self,
@@ -16,15 +16,15 @@ class TestAsContextManager:
         timer: Timer,
         elapsed_1_ms: ElapsedTime,
     ) -> None:
-        """Test using it as context manager.
+        """Test using it as a context manager.
 
-        Test using timer and ``with`` to capture the duration time for
-        code block.
+        Test using the timer and ``with`` to capture the duration time
+        for code block.
 
         Parameters
         ----------
         patch_split : Callable
-            Patcher been used to set the captured duration time.
+            Patcher has been used to set the captured duration time.
         timer : Timer
             A newly created Timer with unlimited storage size.
         elapsed_1_ms : ElapsedTime
@@ -44,7 +44,7 @@ class TestAsContextManager:
         elapsed_1_ms: ElapsedTime,
         elapsed_1_pt_5_ms: ElapsedTime,
     ) -> None:
-        """Test run with multiple times with the same timer.
+        """Test run multiple times with the same timer.
 
         Test run timer using ``with`` ``3`` times and expected to see
         all three captured duration times.
@@ -52,7 +52,7 @@ class TestAsContextManager:
         Parameters
         ----------
         patch_split : Callable
-            Patcher been used to set the captured duration time.
+            Patcher has been used to set the captured duration time.
         timer : Timer
             A newly created Timer with unlimited storage size.
         elapsed_100_ns : ElapsedTime
@@ -75,7 +75,7 @@ class TestAsContextManager:
 
 
 class TestAsDecorator:
-    """Test suite for using Timer as function decorator."""
+    """Test suite for using Timer as a function decorator."""
 
     def test_single_run(
         self,
@@ -83,15 +83,15 @@ class TestAsDecorator:
         timer: Timer,
         elapsed_1_ms: ElapsedTime,
     ) -> None:
-        """Test the function with a single runs.
+        """Test the function with a single run.
 
         Test run decorated function and expected to get the captured
-        duration afterwards.
+        duration afterward.
 
         Parameters
         ----------
         patch_split : Callable
-            Patcher been used to set the captured duration time.
+            Patcher has been used to set the captured duration time.
         timer : Timer
             A newly created Timer with unlimited storage size.
         elapsed_1_ms : ElapsedTime
@@ -122,7 +122,7 @@ class TestAsDecorator:
         Parameters
         ----------
         patch_split : Callable
-            Patcher been used to set the captured duration time.
+            Patcher has been used to set the captured duration time.
         timer : Timer
             A newly created Timer with unlimited storage size.
         elapsed_100_ns : ElapsedTime
@@ -152,10 +152,10 @@ class TestNoElapsedTimeCapturedException:
     """Test suite for NoElapsedTimeCaptured exception."""
 
     def test_access_duration_attr_before_run(self, timer: Timer) -> None:
-        """Test access duration attribute before capture anything.
+        """Test access duration attribute before capturing anything.
 
-        Test try to access duration attribute before capture anything,
-        expected to see a ``ElapsedTimeNotCaptured`` exception.
+        Test tries to access duration attribute before capturing
+        anything, expected to see ``ElapsedTimeNotCaptured`` exception.
 
         Parameters
         ----------
@@ -181,7 +181,7 @@ class TestInit:
         elapsed_1_ms: ElapsedTime,
         elapsed_1_pt_5_ms: ElapsedTime,
     ) -> None:
-        """Test to set max number of durations been saved.
+        """Test to set the max number of durations been saved.
 
         Test timer with a max storage limitation at ``2``. Using it to
         catch ``3`` duration times and expected to see two latest only.

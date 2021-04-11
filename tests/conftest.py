@@ -36,12 +36,12 @@ def patch_clock(monkeypatch: MonkeyPatch) -> Callable[[int], ContextManager]:
     Parameters
     ----------
     monkeypatch : MonkeyPatch
-        Fixture been used to patch clock method.
+        The fixture has been used to patch the clock method.
 
     Returns
     -------
     Callable[[int], ContextManager]
-        A context manager takes intger argument and patch that value as
+        A context manager takes integer argument and patch that value as
         the return value of the clock method.
 
     Examples
@@ -57,7 +57,7 @@ def patch_clock(monkeypatch: MonkeyPatch) -> Callable[[int], ContextManager]:
         Parameters
         ----------
         elapsed_ns : int
-            Value should be returned by the clock method.
+            The value should be returned by the clock method.
         """
         monkeypatch.setattr(Stopwatch, "_clock", lambda self: elapsed_ns)
         yield
@@ -74,12 +74,12 @@ def patch_split(
     Parameters
     ----------
     monkeypatch : MonkeyPatch
-        Fixture been used to patch split method.
+         The fixture has been used to patch the split method.
 
     Returns
     -------
     Callable[[Iterable[int]], ContextManager]
-        A context manager takes a list of intgers as nanoseconds and
+        A context manager takes a list of integers as nanoseconds and
         patch those as the return values of the elapse method.
 
     Examples
@@ -95,7 +95,7 @@ def patch_split(
         Parameters
         ----------
         elapsed_times : Iterable[int]
-            List of nanoseconds should be returned by the split method.
+            The nanoseconds should be returned by the split method.
         """
         mock_stopwatch = Mock(spec=["reset", "split"])
         mock_stopwatch.split.side_effect = [
