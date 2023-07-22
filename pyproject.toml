@@ -1,0 +1,41 @@
+[project]
+name = "timerun"
+description = "TimeRun is a Python library for elapsed time measurement."
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+authors = [
+  { name = "HH-MWB", email = "h.hong@mail.com" },
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+[project.urls]
+"Homepage" = "https://pypi.org/project/timerun"
+"Bug Reports" = "https://github.com/HH-MWB/timerun/issues"
+"Source" = "https://github.com/HH-MWB/timerun"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+zip-safe = true
+include-package-data = false
+license-files = ["LICENSE"]
+
+[tool.setuptools.dynamic]
+version = {attr = "timerun.__version__"}
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 79
+target-version = ["py37", "py38", "py39", "py310", "py311"]
