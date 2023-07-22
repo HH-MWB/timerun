@@ -6,72 +6,72 @@ from pytest import raises
 
 from timerun import ElapsedTime, ElapsedTimeNotCaptured, Timer
 
+# =========================================================================== #
+# Test suite for using Timer as a context manager.                            #
+# =========================================================================== #
 
-class TestAsContextManager:
-    """Test suite for using Timer as a context manager."""
 
-    def test_single_run(
-        self,
-        patch_split: Callable,
-        timer: Timer,
-        elapsed_1_ms: ElapsedTime,
-    ) -> None:
-        """Test using it as a context manager.
+def test_use_timer_as_context_manager_single_run(
+    patch_split: Callable,
+    timer: Timer,
+    elapsed_1_ms: ElapsedTime,
+) -> None:
+    """Test using it as a context manager.
 
-        Test using the timer and ``with`` to capture the duration time
-        for code block.
+    Test using the timer and ``with`` to capture the duration time
+    for code block.
 
-        Parameters
-        ----------
-        patch_split : Callable
-            Patcher has been used to set the captured duration time.
-        timer : Timer
-            A newly created Timer with unlimited storage size.
-        elapsed_1_ms : ElapsedTime
-            Elapsed Time of 1 microsecond.
-        """
-        with patch_split(elapsed_times=[1000]):
+    Parameters
+    ----------
+    patch_split : Callable
+        Patcher has been used to set the captured duration time.
+    timer : Timer
+        A newly created Timer with unlimited storage size.
+    elapsed_1_ms : ElapsedTime
+        Elapsed Time of 1 microsecond.
+    """
+    with patch_split(elapsed_times=[1000]):
+        with timer:
+            pass
+
+    assert timer.duration == elapsed_1_ms
+
+
+def test_use_timer_as_context_manager_multiple_run(
+    patch_split: Callable,
+    timer: Timer,
+    elapsed_100_ns: ElapsedTime,
+    elapsed_1_ms: ElapsedTime,
+    elapsed_1_pt_5_ms: ElapsedTime,
+) -> None:
+    """Test run multiple times with the same timer.
+
+    Test run timer using ``with`` ``3`` times and expected to see
+    all three captured duration times.
+
+    Parameters
+    ----------
+    patch_split : Callable
+        Patcher has been used to set the captured duration time.
+    timer : Timer
+        A newly created Timer with unlimited storage size.
+    elapsed_100_ns : ElapsedTime
+        Elapsed Time of 100 nanoseconds.
+    elapsed_1_ms : ElapsedTime
+        Elapsed Time of 1 microsecond.
+    elapsed_1_pt_5_ms : ElapsedTime
+        Elapsed Time of 1.5 microseconds.
+    """
+    with patch_split(elapsed_times=[100, 1000, 1500]):
+        for _ in range(3):
             with timer:
                 pass
 
-        assert timer.duration == elapsed_1_ms
-
-    def test_multiple_run(
-        self,
-        patch_split: Callable,
-        timer: Timer,
-        elapsed_100_ns: ElapsedTime,
-        elapsed_1_ms: ElapsedTime,
-        elapsed_1_pt_5_ms: ElapsedTime,
-    ) -> None:
-        """Test run multiple times with the same timer.
-
-        Test run timer using ``with`` ``3`` times and expected to see
-        all three captured duration times.
-
-        Parameters
-        ----------
-        patch_split : Callable
-            Patcher has been used to set the captured duration time.
-        timer : Timer
-            A newly created Timer with unlimited storage size.
-        elapsed_100_ns : ElapsedTime
-            Elapsed Time of 100 nanoseconds.
-        elapsed_1_ms : ElapsedTime
-            Elapsed Time of 1 microsecond.
-        elapsed_1_pt_5_ms : ElapsedTime
-            Elapsed Time of 1.5 microseconds.
-        """
-        with patch_split(elapsed_times=[100, 1000, 1500]):
-            for _ in range(3):
-                with timer:
-                    pass
-
-        assert timer.durations == (
-            elapsed_100_ns,
-            elapsed_1_ms,
-            elapsed_1_pt_5_ms,
-        )
+    assert timer.durations == (
+        elapsed_100_ns,
+        elapsed_1_ms,
+        elapsed_1_pt_5_ms,
+    )
 
 
 class TestAsDecorator:
@@ -106,7 +106,7 @@ class TestAsDecorator:
             func()
         assert timer.duration == elapsed_1_ms
 
-    def test_multiple_run(
+    def test_multiple_run(  # pylint: disable=too-many-arguments
         self,
         patch_split: Callable,
         timer: Timer,
@@ -173,7 +173,9 @@ class TestInit:
         """Test capture durations into an existing list."""
         durations: List[ElapsedTime] = []
         timer = Timer(storage=durations)
-        assert timer._durations is durations
+        assert (
+            timer._durations is durations  # pylint: disable=protected-access
+        )
 
     def test_max_storage_limitation(
         self,
