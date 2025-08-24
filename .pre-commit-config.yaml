@@ -1,6 +1,6 @@
 repos:
   - repo: 'https://github.com/pre-commit/pre-commit-hooks'
-    rev: v4.4.0
+    rev: v6.0.0
     hooks:
       - id: check-toml
       - id: check-yaml
@@ -11,19 +11,19 @@ repos:
           - --fix=lf
       - id: trailing-whitespace
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 6.0.1
     hooks:
       - id: isort
-  - repo: 'https://github.com/psf/black'
-    rev: 23.3.0
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
     hooks:
       - id: black
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.4.0
+    rev: v1.17.1
     hooks:
       - id: mypy
   - repo: https://github.com/pylint-dev/pylint
-    rev: v2.17.4
+    rev: v3.3.8
     hooks:
       - id: pylint
         additional_dependencies:

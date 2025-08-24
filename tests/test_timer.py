@@ -106,7 +106,7 @@ class TestAsDecorator:
             func()
         assert timer.duration == elapsed_1_ms
 
-    def test_multiple_run(  # pylint: disable=too-many-arguments
+    def test_multiple_run(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         patch_split: Callable,
         timer: Timer,
