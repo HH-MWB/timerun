@@ -16,6 +16,12 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+]
+
 [project.urls]
 "Homepage" = "https://pypi.org/project/timerun"
 "Bug Reports" = "https://github.com/HH-MWB/timerun/issues"
