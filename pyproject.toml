@@ -1,35 +1,48 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "timerun"
 description = "TimeRun is a Python library for elapsed time measurement."
 readme = "README.md"
 requires-python = ">=3.7"
-license = {text = "MIT"}
-authors = [
-  { name = "HH-MWB", email = "h.hong@mail.com" },
+license = { text = "MIT" }
+keywords = [
+    "time",
+    "measurement",
+    "elapsed",
+    "stopwatch",
+    "timer",
+    "performance",
 ]
+authors = [{ name = "HH-MWB", email = "h.hong@mail.com" }]
 classifiers = [
-  "Development Status :: 3 - Alpha",
-  "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python",
-  "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Monitoring",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = [
-  "pytest",
-  "pytest-cov",
-]
+dev = ["pytest", "pytest-cov"]
 
 [project.urls]
-"Homepage" = "https://pypi.org/project/timerun"
+Homepage = "https://github.com/HH-MWB/timerun"
 "Bug Reports" = "https://github.com/HH-MWB/timerun/issues"
-"Source" = "https://github.com/HH-MWB/timerun"
-
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+Changelog = "https://github.com/HH-MWB/timerun/releases"
+PyPI = "https://pypi.org/project/timerun"
 
 [tool.setuptools]
 zip-safe = true
@@ -37,11 +50,22 @@ include-package-data = false
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
-version = {attr = "timerun.__version__"}
+version = { attr = "timerun.__version__" }
 
-[tool.isort]
-profile = "black"
+[tool.bandit]
+skips = ["B101"] # Skip assert_used test
 
 [tool.black]
 line-length = 79
-target-version = ["py37", "py38", "py39", "py310", "py311"]
+target-version = [
+    "py37",
+    "py38",
+    "py39",
+    "py310",
+    "py311",
+    "py312",
+    "py313",
+]
+
+[tool.isort]
+profile = "black"
