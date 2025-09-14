@@ -7,7 +7,14 @@ from contextlib import ContextDecorator
 from dataclasses import dataclass
 from datetime import timedelta
 from time import perf_counter_ns, process_time_ns
-from typing import Callable, Deque, List, Optional, Tuple, Union
+from typing import (
+    Callable,
+    Iterator,
+    Optional,
+    Protocol,
+    Tuple,
+    TypeVar,
+)
 
 __all__: Tuple[str, ...] = (
     # -- Core --
@@ -16,34 +23,71 @@ __all__: Tuple[str, ...] = (
     "Timer",
     # -- Exceptions --
     "TimeRunException",
-    "ElapsedTimeNotCaptured",
+    "NoDurationCaptured",
 )
 
 __version__: str = "0.2.0"
 
 
 # =========================================================================== #
+#                                Type Protocols                               #
+# --------------------------------------------------------------------------- #
+#                                                                             #
+# The Timer class needs to store captured durations in a flexible way that    #
+# allows users to provide their own storage implementations.                  #
+#                                                                             #
+# Instead of restricting to specific types like List or Deque, timerun uses a #
+# protocol to define the required interface for duration storage.             #
+#                                                                             #
+# This allows users to provide custom storage backends (database, file,       #
+# memory-mapped, etc.) as long as they implement the basic sequence methods.  #
+#                                                                             #
+# =========================================================================== #
+
+T = TypeVar("T")
+
+
+class AppendableSequence(Protocol[T]):
+    """Protocol for sequences that support appending and indexing."""
+
+    def append(self, item: T) -> None:
+        """Add an item to the sequence."""
+
+    def __getitem__(self, index: int) -> T:
+        """Get item by index (supports negative indexing)."""
+
+    def __len__(self) -> int:
+        """Return number of items in the sequence."""
+
+    def __iter__(self) -> Iterator[T]:
+        """Iterate over items in the sequence."""
+
+
+# =========================================================================== #
 #                                 Exceptions                                  #
 # --------------------------------------------------------------------------- #
 #                                                                             #
-# The invalid behaviors of using the classes, functions in timerun should be  #
+# Invalid behaviors when using the classes and functions in timerun should be #
 # converted to an exception and raised.                                       #
 #                                                                             #
-# To make exceptions be easier managed, all exceptions created for timerun    #
+# To make exceptions easier to manage, all exceptions created for the timerun #
 # library will extend from a base exception ``TimeRunException``.             #
 #                                                                             #
 # =========================================================================== #
 
 
 class TimeRunException(Exception):
-    """Based exception for TimeRun"""
+    """Base exception for TimeRun"""
 
 
-class ElapsedTimeNotCaptured(TimeRunException, AttributeError):
-    """Elapsed Time Not Captured Exception"""
+class NoDurationCaptured(TimeRunException, AttributeError):
+    """No Duration Captured Exception"""
 
     def __init__(self) -> None:
-        super().__init__("Elapsed Time Not Captured.")
+        super().__init__(
+            "No duration available. This is likely because the Timer has not "
+            "been used to measure any code blocks or functions yet."
+        )
 
 
 # =========================================================================== #
@@ -54,10 +98,10 @@ class ElapsedTimeNotCaptured(TimeRunException, AttributeError):
 # between two date, time, or datetime instances to microsecond resolution.    #
 #                                                                             #
 # However, the highest available resolution measurer provided by Python can   #
-# measure a short duration in nanoseconds.                                    #
+# measure short durations in nanoseconds.                                     #
 #                                                                             #
-# Thus, there is a needs to have a class that can represent elapsed time in   #
-# nanoseconds or a higher resolution.                                         #
+# Thus, there is a need to have a class that can represent elapsed time at a  #
+# higher resolution (nanoseconds) for the best accuracy.                      #
 #                                                                             #
 # =========================================================================== #
 
@@ -66,20 +110,20 @@ class ElapsedTimeNotCaptured(TimeRunException, AttributeError):
 class ElapsedTime:
     """Elapsed Time
 
-    An immutable object represent elapsed time in nanoseconds.
+    An immutable object representing elapsed time in nanoseconds.
 
     Attributes
     ----------
     nanoseconds : int
-        Expressing the elapsed time in nanoseconds.
+        The elapsed time expressed in nanoseconds.
     timedelta : timedelta
-        The duration in timedelta type. This attribute may not maintain
-        the original accuracy.
+        The duration as a timedelta type. This attribute may not
+        maintain the original accuracy.
 
     Parameters
     ----------
     nanoseconds : int
-        Expressing the elapsed time in nanoseconds.
+        The elapsed time expressed in nanoseconds.
 
     Examples
     --------
@@ -107,7 +151,7 @@ class ElapsedTime:
 
     @property
     def timedelta(self) -> timedelta:
-        """The duration converted from nanoseconds to timedelta type."""
+        """The duration converted from nanoseconds to a timedelta type."""
         return timedelta(microseconds=self.nanoseconds // int(1e3))
 
 
@@ -137,15 +181,16 @@ class Stopwatch:
     Parameters
     ----------
     count_sleep : bool, optional
-        An optional boolean variable express if the time elapsed during
-        sleep should be counted or not.
+        An optional boolean variable expressing whether the time elapsed
+        during sleep should be counted or not. Defaults to True if None.
 
     Methods
     -------
     reset
-        Restart the stopwatch by set starting time to the current time.
+        Restart the stopwatch by setting the starting time to the
+        current time.
     split
-        Get elapsed time between now and the starting time.
+        Get the elapsed time between now and the starting time.
 
     Examples
     --------
@@ -168,11 +213,11 @@ class Stopwatch:
         self._start: int = self._clock()
 
     def reset(self) -> None:
-        """Reset the starting time to current time."""
+        """Reset the starting time to the current time."""
         self._start = self._clock()
 
     def split(self) -> ElapsedTime:
-        """Get elapsed time between now and the starting time."""
+        """Get the elapsed time between now and the starting time."""
         return ElapsedTime(self._clock() - self._start)
 
 
@@ -180,10 +225,10 @@ class Stopwatch:
 #                                    Timer                                    #
 # --------------------------------------------------------------------------- #
 #                                                                             #
-# For the most use case, the user would just want to measure the elapsed time #
-# for a run of code block or function.                                        #
+# For most use cases, the user would just want to measure the elapsed time    #
+# for a run of a code block or function.                                      #
 #                                                                             #
-# It would be more clean and elegant if the user can measure a function by    #
+# It would be cleaner and more elegant if the user can measure a function by  #
 # using a decorator and measure a code block by using a context manager.      #
 #                                                                             #
 # =========================================================================== #
@@ -192,7 +237,8 @@ class Stopwatch:
 class Timer(ContextDecorator):
     """Timer
 
-    A context decorator can capture and save the measured elapsed time.
+    A context decorator that can capture and save the measured elapsed
+    time.
 
     Attributes
     ----------
@@ -204,15 +250,15 @@ class Timer(ContextDecorator):
     Parameters
     ----------
     count_sleep : bool, optional
-        An optional boolean variable express if the time elapsed during
-        sleep should be counted or not.
-    storage : List[ElapsedTime] or Deque[ElapsedTime], optional
-        A list is used to save captured results. By default initiate a
-        new one using deque.
+        An optional boolean variable expressing whether the time elapsed
+        during sleep should be counted or not. Defaults to True if None.
+    storage : AppendableSequence[ElapsedTime], optional
+        A sequence-like object used to save captured results.
+        If provided, this storage will be used directly and max_len will
+        be ignored. If not provided, a new deque will be created.
     max_len : int, optional
-        The max length for capturing storage, by default infinity.
-        Notice that this parameter will only be used when this object
-        needs to initiate a new storage queue.
+        The maximum length for the capturing storage. Defaults to None,
+        which will create storage with infinite length.
 
     Examples
     --------
@@ -235,11 +281,11 @@ class Timer(ContextDecorator):
     def __init__(
         self,
         count_sleep: Optional[bool] = None,
-        storage: Optional[Union[List[ElapsedTime], Deque[ElapsedTime]]] = None,
+        storage: Optional[AppendableSequence[ElapsedTime]] = None,
         max_len: Optional[int] = None,
     ) -> None:
         self._stopwatch: Stopwatch = Stopwatch(count_sleep)
-        self._durations: Union[List[ElapsedTime], Deque[ElapsedTime]] = (
+        self._durations: AppendableSequence[ElapsedTime] = (
             storage if storage is not None else deque(maxlen=max_len)
         )
 
@@ -255,8 +301,8 @@ class Timer(ContextDecorator):
     def durations(self) -> Tuple[ElapsedTime, ...]:
         """The captured duration times as a tuple.
 
-        A tuple contains all captured duration times. Python can unpack
-        tuple into multiple variables.
+        A tuple containing all captured duration times, that can be
+        unpacked into multiple variables.
 
         Examples
         --------
@@ -270,11 +316,12 @@ class Timer(ContextDecorator):
 
         Raises
         ------
-        NoElapsedTimeCaptured
-            Error occurred by accessing the empty durations list, which
-            normally because the measurer has not been triggered yet.
+        NoDurationCaptured
+            Error that occurs when accessing an empty durations list,
+            which is usually because the measurer has not been triggered
+            yet.
         """
         try:
             return self._durations[-1]
         except IndexError as error:
-            raise ElapsedTimeNotCaptured from error
+            raise NoDurationCaptured from error

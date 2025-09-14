@@ -4,7 +4,7 @@ from typing import Callable, List
 
 from pytest import raises
 
-from timerun import ElapsedTime, ElapsedTimeNotCaptured, Timer
+from timerun import ElapsedTime, NoDurationCaptured, Timer
 
 # =========================================================================== #
 # Test suite for using Timer as a context manager.                            #
@@ -155,14 +155,14 @@ class TestNoElapsedTimeCapturedException:
         """Test access duration attribute before capturing anything.
 
         Test tries to access duration attribute before capturing
-        anything, expected to see ``ElapsedTimeNotCaptured`` exception.
+        anything, expected to see ``NoDurationCaptured`` exception.
 
         Parameters
         ----------
         timer : Timer
             A newly created Timer with unlimited storage size.
         """
-        with raises(ElapsedTimeNotCaptured):
+        with raises(NoDurationCaptured):
             _ = timer.duration
 
 
