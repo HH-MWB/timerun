@@ -14,9 +14,11 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
 .PHONY: init
-init: ## Set up Python development environment
+init: ## Set up Python development environment with pre-commit hooks
 	@test -d "$(VENV_DIR)" || python3 -m venv "$(VENV_DIR)" >/dev/null 2>&1
 	@"$(VENV_DIR)/bin/pip" install -e ".[dev]" >/dev/null 2>&1
+	@"$(VENV_DIR)/bin/pip" install pre-commit >/dev/null 2>&1
+	@"$(VENV_DIR)/bin/pre-commit" install >/dev/null 2>&1
 	@echo "Development environment ready! To activate it, run: source $(VENV_DIR)/bin/activate"
 
 .PHONY: test
