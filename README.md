@@ -24,7 +24,7 @@ TimeRun is a simple, yet elegant elapsed time measurement library for [Python](h
 
 ### Prerequisites
 
-The only prerequisite to use TimeRun is running **Python 3.7+**.
+The only prerequisite to use TimeRun is running **Python 3.9+**.
 
 ### Installation
 

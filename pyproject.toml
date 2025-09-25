@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "timerun"
 description = "TimeRun is a Python library for elapsed time measurement."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 license = { text = "MIT" }
 keywords = [
     "time",
@@ -23,8 +23,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -58,8 +56,6 @@ skips = ["B101"] # Skip assert_used test
 [tool.black]
 line-length = 79
 target-version = [
-    "py37",
-    "py38",
     "py39",
     "py310",
     "py311",

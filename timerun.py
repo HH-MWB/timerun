@@ -3,20 +3,14 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Iterator
 from contextlib import ContextDecorator
 from dataclasses import dataclass
 from datetime import timedelta
 from time import perf_counter_ns, process_time_ns
-from typing import (
-    Callable,
-    Iterator,
-    Optional,
-    Protocol,
-    Tuple,
-    TypeVar,
-)
+from typing import Callable, Protocol, TypeVar
 
-__all__: Tuple[str, ...] = (
+__all__: tuple[str, ...] = (
     # -- Core --
     "ElapsedTime",
     "Stopwatch",
@@ -202,7 +196,7 @@ class Stopwatch:
 
     __slots__ = ["_clock", "_start"]
 
-    def __init__(self, count_sleep: Optional[bool] = None) -> None:
+    def __init__(self, count_sleep: bool | None = None) -> None:
         if count_sleep is None:
             count_sleep = True
 
@@ -280,9 +274,9 @@ class Timer(ContextDecorator):
 
     def __init__(
         self,
-        count_sleep: Optional[bool] = None,
-        storage: Optional[AppendableSequence[ElapsedTime]] = None,
-        max_len: Optional[int] = None,
+        count_sleep: bool | None = None,
+        storage: AppendableSequence[ElapsedTime] | None = None,
+        max_len: int | None = None,
     ) -> None:
         self._stopwatch: Stopwatch = Stopwatch(count_sleep)
         self._durations: AppendableSequence[ElapsedTime] = (
@@ -298,7 +292,7 @@ class Timer(ContextDecorator):
         self._durations.append(duration)
 
     @property
-    def durations(self) -> Tuple[ElapsedTime, ...]:
+    def durations(self) -> tuple[ElapsedTime, ...]:
         """The captured duration times as a tuple.
 
         A tuple containing all captured duration times, that can be

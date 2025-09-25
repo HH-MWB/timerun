@@ -6,7 +6,7 @@ Thank you for your interest in contributing to TimeRun! This document provides g
 
 ### Prerequisites
 
-- Python 3.7 or higher
+- Python 3.9 or higher
 - Git
 
 ### Development Setup
