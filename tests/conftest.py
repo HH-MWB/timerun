@@ -117,7 +117,7 @@ def patch_split(
 def stopwatch() -> Stopwatch:
     """A newly created Stopwatch started at time ``0``."""
     watch: Stopwatch = Stopwatch()
-    watch._start = 0
+    watch._start = 0  # pylint: disable=protected-access
     return watch
 
 

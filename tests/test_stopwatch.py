@@ -12,21 +12,30 @@ class TestInit:
     def test_include_sleep(self) -> None:
         """Test initialize stopwatch take sleep in to count."""
         stopwatch: Stopwatch = Stopwatch(count_sleep=True)
-        assert stopwatch._clock == perf_counter_ns
+        assert (
+            stopwatch._clock  # pylint: disable=protected-access
+            == perf_counter_ns
+        )
 
     def test_exclude_sleep(self) -> None:
         """Test initialize stopwatch do not take sleep in to count."""
         stopwatch: Stopwatch = Stopwatch(count_sleep=False)
-        assert stopwatch._clock == process_time_ns
+        assert (
+            stopwatch._clock  # pylint: disable=protected-access
+            == process_time_ns
+        )
 
     def test_default_measurer(self) -> None:
         """Test initialize stopwatch without arguments."""
         default: Stopwatch = Stopwatch()
         include: Stopwatch = Stopwatch(count_sleep=True)
-        assert default._clock == include._clock
+        assert (
+            default._clock  # pylint: disable=protected-access
+            == include._clock  # pylint: disable=protected-access
+        )
 
 
-class TestReset:
+class TestReset:  # pylint: disable=too-few-public-methods
     """Test suite for starting stopwatch."""
 
     def test_reset(self, patch_clock: Callable, stopwatch: Stopwatch) -> None:
@@ -42,10 +51,10 @@ class TestReset:
         stopwatch : Stopwatch
             A started Stopwatch, which will be reset.
         """
-        assert stopwatch._start != 1
+        assert stopwatch._start != 1  # pylint: disable=protected-access
         with patch_clock(elapsed_ns=1):
             stopwatch.reset()
-        assert stopwatch._start == 1
+        assert stopwatch._start == 1  # pylint: disable=protected-access
 
 
 class TestSplit:
@@ -72,7 +81,7 @@ class TestSplit:
         elapsed_100_ns : ElapsedTime
             Elapsed Time of 100 nanoseconds.
         """
-        assert stopwatch._start == 0
+        assert stopwatch._start == 0  # pylint: disable=protected-access
 
         with patch_clock(elapsed_ns=100):
             elapsed: ElapsedTime = stopwatch.split()
@@ -103,7 +112,7 @@ class TestSplit:
         elapsed_1_ms : ElapsedTime
             Elapsed Time of 1 microsecond.
         """
-        assert stopwatch._start == 0
+        assert stopwatch._start == 0  # pylint: disable=protected-access
 
         with patch_clock(elapsed_ns=100):
             first_elapsed: ElapsedTime = stopwatch.split()

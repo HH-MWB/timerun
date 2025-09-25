@@ -16,28 +16,28 @@
 
 TimeRun is a simple, yet elegant elapsed time measurement library for [Python](https://www.python.org). It is distributed as a single file module and has no dependencies other than the [Python Standard Library](https://docs.python.org/3/library/).
 
-- **Elapsed Time**: Customized time delta which represents elapsed time in nanoseconds.
-- **Stopwatch**: An elapsed time measurer with the highest available resolution.
-- **Timer**: Convenient syntax to capture measured elapsed time result and save it.
+- **Elapsed Time**: Customized time delta which represents elapsed time in nanoseconds
+- **Stopwatch**: An elapsed time measurer with the highest available resolution
+- **Timer**: Convenient syntax to capture and save measured elapsed time results
 
 ## Setup
 
 ### Prerequisites
 
-The only prerequisite to use TimeRun is running **Python 3.7+**.
+The only prerequisite to use TimeRun is running **Python 3.9+**.
 
 ### Installation
 
 Install TimeRun from [Python Package Index](https://pypi.org/project/timerun/):
 
-```
+```bash
 pip install timerun
 ```
 
 Install TimeRun from [Source Code](https://github.com/HH-MWB/timerun):
 
-```
-python setup.py install
+```bash
+pip install git+https://github.com/HH-MWB/timerun.git
 ```
 
 ## Quickstart
@@ -64,6 +64,10 @@ python setup.py install
 >>> print(timer.duration)
 0:00:00.000000100
 ```
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ## License
 

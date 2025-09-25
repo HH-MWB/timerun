@@ -22,7 +22,7 @@ class TestInit:
         assert duration.nanoseconds == 1
 
 
-class TestImmutable:
+class TestImmutable:  # pylint: disable=too-few-public-methods
     """Test ElapsedTime is immutable."""
 
     def test_modify_after_init(self, elapsed_1_ns: ElapsedTime) -> None:
@@ -45,22 +45,28 @@ class TestComparable:
     """Test ElapsedTime is comparable."""
 
     def test_equal(self) -> None:
+        """Test '==' operator for ElapsedTime."""
         assert ElapsedTime(nanoseconds=1000) == ElapsedTime(nanoseconds=1000)
 
     def test_not_equal(self) -> None:
+        """Test '!=' operator for ElapsedTime."""
         assert ElapsedTime(nanoseconds=1000) != ElapsedTime(nanoseconds=2000)
 
     def test_greater_than(self) -> None:
+        """Test '>' operator for ElapsedTime."""
         assert ElapsedTime(nanoseconds=2000) > ElapsedTime(nanoseconds=1000)
 
     def test_smaller_than(self) -> None:
+        """Test '<' operator for ElapsedTime."""
         assert ElapsedTime(nanoseconds=1000) < ElapsedTime(nanoseconds=2000)
 
     def test_greater_or_equal(self) -> None:
+        """Test '>=' operator for ElapsedTime."""
         assert ElapsedTime(nanoseconds=1000) >= ElapsedTime(nanoseconds=1000)
         assert ElapsedTime(nanoseconds=2000) >= ElapsedTime(nanoseconds=1000)
 
     def test_smaller_or_equal(self) -> None:
+        """Test '<=' operator for ElapsedTime."""
         assert ElapsedTime(nanoseconds=1000) <= ElapsedTime(nanoseconds=1000)
         assert ElapsedTime(nanoseconds=1000) <= ElapsedTime(nanoseconds=2000)
 
@@ -131,7 +137,7 @@ class TestStr:
         assert str(elapsed_1_sec) == "0:00:01"
 
 
-class TestRepr:
+class TestRepr:  # pylint: disable=too-few-public-methods
     """Test suite for calling repr function on ElapsedTime."""
 
     def test_repr(self, elapsed_100_ns: ElapsedTime) -> None:
