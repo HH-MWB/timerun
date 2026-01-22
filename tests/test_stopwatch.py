@@ -1,9 +1,17 @@
 """A collection of tests for class ``Stopwatch``."""
 
+# pylint: disable=no-self-use
+
+from __future__ import annotations
+
 from time import perf_counter_ns, process_time_ns
-from typing import Callable
+from typing import TYPE_CHECKING
 
 from timerun import ElapsedTime, Stopwatch
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from contextlib import AbstractContextManager
 
 
 class TestInit:
@@ -13,7 +21,7 @@ class TestInit:
         """Test initialize stopwatch take sleep in to count."""
         stopwatch: Stopwatch = Stopwatch(count_sleep=True)
         assert (
-            stopwatch._clock  # pylint: disable=protected-access
+            stopwatch._clock  # pylint: disable=protected-access  # noqa: SLF001
             == perf_counter_ns
         )
 
@@ -21,7 +29,7 @@ class TestInit:
         """Test initialize stopwatch do not take sleep in to count."""
         stopwatch: Stopwatch = Stopwatch(count_sleep=False)
         assert (
-            stopwatch._clock  # pylint: disable=protected-access
+            stopwatch._clock  # pylint: disable=protected-access  # noqa: SLF001
             == process_time_ns
         )
 
@@ -30,15 +38,19 @@ class TestInit:
         default: Stopwatch = Stopwatch()
         include: Stopwatch = Stopwatch(count_sleep=True)
         assert (
-            default._clock  # pylint: disable=protected-access
-            == include._clock  # pylint: disable=protected-access
+            default._clock  # pylint: disable=protected-access  # noqa: SLF001
+            == include._clock  # pylint: disable=protected-access  # noqa: SLF001
         )
 
 
 class TestReset:  # pylint: disable=too-few-public-methods
     """Test suite for starting stopwatch."""
 
-    def test_reset(self, patch_clock: Callable, stopwatch: Stopwatch) -> None:
+    def test_reset(
+        self,
+        patch_clock: Callable[[int], AbstractContextManager[None]],
+        stopwatch: Stopwatch,
+    ) -> None:
         """Test to reset a stopwatch.
 
         Expected to have a stopwatch whose `_start` attribute is not
@@ -50,11 +62,12 @@ class TestReset:  # pylint: disable=too-few-public-methods
             Patcher has been used to set the starting time at ``1``.
         stopwatch : Stopwatch
             A started Stopwatch, which will be reset.
+
         """
-        assert stopwatch._start != 1  # pylint: disable=protected-access
-        with patch_clock(elapsed_ns=1):
+        assert stopwatch._start != 1  # pylint: disable=protected-access  # noqa: SLF001
+        with patch_clock(1):
             stopwatch.reset()
-        assert stopwatch._start == 1  # pylint: disable=protected-access
+        assert stopwatch._start == 1  # pylint: disable=protected-access  # noqa: SLF001
 
 
 class TestSplit:
@@ -62,7 +75,7 @@ class TestSplit:
 
     def test_calculation(
         self,
-        patch_clock: Callable,
+        patch_clock: Callable[[int], AbstractContextManager[None]],
         stopwatch: Stopwatch,
         elapsed_100_ns: ElapsedTime,
     ) -> None:
@@ -80,16 +93,17 @@ class TestSplit:
             A stopwatch started at time ``0``.
         elapsed_100_ns : ElapsedTime
             Elapsed Time of 100 nanoseconds.
-        """
-        assert stopwatch._start == 0  # pylint: disable=protected-access
 
-        with patch_clock(elapsed_ns=100):
+        """
+        assert not stopwatch._start  # pylint: disable=protected-access  # noqa: SLF001
+
+        with patch_clock(100):
             elapsed: ElapsedTime = stopwatch.split()
         assert elapsed == elapsed_100_ns
 
     def test_split_multiple_times(
         self,
-        patch_clock: Callable,
+        patch_clock: Callable[[int], AbstractContextManager[None]],
         stopwatch: Stopwatch,
         elapsed_100_ns: ElapsedTime,
         elapsed_1_ms: ElapsedTime,
@@ -111,13 +125,14 @@ class TestSplit:
             Elapsed Time of 100 nanoseconds.
         elapsed_1_ms : ElapsedTime
             Elapsed Time of 1 microsecond.
-        """
-        assert stopwatch._start == 0  # pylint: disable=protected-access
 
-        with patch_clock(elapsed_ns=100):
+        """
+        assert not stopwatch._start  # pylint: disable=protected-access  # noqa: SLF001
+
+        with patch_clock(100):
             first_elapsed: ElapsedTime = stopwatch.split()
         assert first_elapsed == elapsed_100_ns
 
-        with patch_clock(elapsed_ns=1000):
+        with patch_clock(1000):
             second_elapsed: ElapsedTime = stopwatch.split()
         assert second_elapsed == elapsed_1_ms

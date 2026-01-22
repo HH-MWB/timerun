@@ -3,21 +3,23 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterator
 from contextlib import ContextDecorator
 from dataclasses import dataclass
 from datetime import timedelta
 from time import perf_counter_ns, process_time_ns
-from typing import Callable, Protocol, TypeVar
+from typing import TYPE_CHECKING, Protocol, TypeVar
 
-__all__: tuple[str, ...] = (
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
+__all__: tuple[str, ...] = (  # noqa: RUF022
     # -- Core --
     "ElapsedTime",
     "Stopwatch",
     "Timer",
     # -- Exceptions --
-    "TimeRunException",
-    "NoDurationCaptured",
+    "NoDurationCapturedError",
+    "TimeRunError",
 )
 
 __version__: str = "0.3.0"
@@ -44,10 +46,10 @@ T = TypeVar("T")
 class AppendableSequence(Protocol[T]):
     """Protocol for sequences that support appending and indexing."""
 
-    def append(self, item: T) -> None:
+    def append(self, _item: T) -> None:
         """Add an item to the sequence."""
 
-    def __getitem__(self, index: int) -> T:
+    def __getitem__(self, _index: int) -> T:
         """Get item by index (supports negative indexing)."""
 
     def __len__(self) -> int:
@@ -70,17 +72,18 @@ class AppendableSequence(Protocol[T]):
 # =========================================================================== #
 
 
-class TimeRunException(Exception):
-    """Base exception for TimeRun"""
+class TimeRunError(Exception):
+    """Base exception for TimeRun."""
 
 
-class NoDurationCaptured(TimeRunException, AttributeError):
-    """No Duration Captured Exception"""
+class NoDurationCapturedError(TimeRunError, AttributeError):
+    """No Duration Captured Exception."""
 
     def __init__(self) -> None:
+        """Initialize the exception."""
         super().__init__(
             "No duration available. This is likely because the Timer has not "
-            "been used to measure any code blocks or functions yet."
+            "been used to measure any code blocks or functions yet.",
         )
 
 
@@ -102,9 +105,7 @@ class NoDurationCaptured(TimeRunException, AttributeError):
 
 @dataclass(init=True, repr=False, eq=True, order=True, frozen=True)
 class ElapsedTime:
-    """Elapsed Time
-
-    An immutable object representing elapsed time in nanoseconds.
+    """An immutable object representing elapsed time in nanoseconds.
 
     Attributes
     ----------
@@ -126,21 +127,23 @@ class ElapsedTime:
     ElapsedTime(nanoseconds=10)
     >>> print(t)
     0:00:00.000000010
+
     """
 
     __slots__ = ["nanoseconds"]
 
     nanoseconds: int
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # type: ignore[explicit-override]
+        """Return the string representation of the elapsed time."""
         integer_part = timedelta(seconds=self.nanoseconds // int(1e9))
-        decimal_part = self.nanoseconds % int(1e9)
 
-        if decimal_part == 0:
+        if not (decimal_part := self.nanoseconds % int(1e9)):
             return str(integer_part)
         return f"{integer_part}.{decimal_part:09}"
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # type: ignore[explicit-override]
+        """Return the representation of the elapsed time."""
         return f"ElapsedTime(nanoseconds={self.nanoseconds})"
 
     @property
@@ -166,10 +169,9 @@ class ElapsedTime:
 
 
 class Stopwatch:
-    """Stopwatch
+    """A stopwatch with the highest available resolution (in nanoseconds).
 
-    A stopwatch with the highest available resolution (in nanoseconds)
-    to measure elapsed time. It can be set to include or exclude the
+    It measures elapsed time. It can be set to include or exclude the
     sleeping time.
 
     Parameters
@@ -192,11 +194,13 @@ class Stopwatch:
     >>> stopwatch.reset()
     >>> stopwatch.split()
     ElapsedTime(nanoseconds=100)
+
     """
 
     __slots__ = ["_clock", "_start"]
 
-    def __init__(self, count_sleep: bool | None = None) -> None:
+    def __init__(self, *, count_sleep: bool | None = None) -> None:
+        """Initialize the stopwatch."""
         if count_sleep is None:
             count_sleep = True
 
@@ -211,7 +215,14 @@ class Stopwatch:
         self._start = self._clock()
 
     def split(self) -> ElapsedTime:
-        """Get the elapsed time between now and the starting time."""
+        """Get the elapsed time between now and the starting time.
+
+        Returns
+        -------
+        ElapsedTime
+            The elapsed time captured by the stopwatch.
+
+        """
         return ElapsedTime(self._clock() - self._start)
 
 
@@ -229,10 +240,7 @@ class Stopwatch:
 
 
 class Timer(ContextDecorator):
-    """Timer
-
-    A context decorator that can capture and save the measured elapsed
-    time.
+    """A context decorator that can capture and save the measured elapsed time.
 
     Attributes
     ----------
@@ -268,26 +276,31 @@ class Timer(ContextDecorator):
     >>> func()
     >>> print(timer.duration)
     0:00:00.000000100
+
     """
 
-    __slots__ = ["_stopwatch", "_durations"]
+    __slots__ = ["_durations", "_stopwatch"]
 
     def __init__(
         self,
+        *,
         count_sleep: bool | None = None,
         storage: AppendableSequence[ElapsedTime] | None = None,
         max_len: int | None = None,
     ) -> None:
-        self._stopwatch: Stopwatch = Stopwatch(count_sleep)
+        """Initialize the timer."""
+        self._stopwatch: Stopwatch = Stopwatch(count_sleep=count_sleep)
         self._durations: AppendableSequence[ElapsedTime] = (
             storage if storage is not None else deque(maxlen=max_len)
         )
 
-    def __enter__(self) -> Timer:
+    def __enter__(self) -> Timer:  # noqa: PYI034
+        """Start the timer."""
         self._stopwatch.reset()
         return self
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *_: object) -> None:
+        """Stop the timer and save the duration."""
         duration: ElapsedTime = self._stopwatch.split()
         self._durations.append(duration)
 
@@ -301,6 +314,7 @@ class Timer(ContextDecorator):
         Examples
         --------
         >>> first_duration, second_duration = timer.durations
+
         """
         return tuple(self._durations)
 
@@ -310,12 +324,13 @@ class Timer(ContextDecorator):
 
         Raises
         ------
-        NoDurationCaptured
+        NoDurationCapturedError
             Error that occurs when accessing an empty durations list,
             which is usually because the measurer has not been triggered
             yet.
+
         """
         try:
             return self._durations[-1]
         except IndexError as error:
-            raise NoDurationCaptured from error
+            raise NoDurationCapturedError from error

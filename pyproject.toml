@@ -49,19 +49,3 @@ license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
 version = { attr = "timerun.__version__" }
-
-[tool.bandit]
-skips = ["B101"] # Skip assert_used test
-
-[tool.black]
-line-length = 79
-target-version = [
-    "py39",
-    "py310",
-    "py311",
-    "py312",
-    "py313",
-]
-
-[tool.isort]
-profile = "black"

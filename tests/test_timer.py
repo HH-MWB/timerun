@@ -1,10 +1,18 @@
 """A collection of tests for class ``Timer``."""
 
-from typing import Callable, List
+# pylint: disable=no-self-use
 
-from pytest import raises
+from __future__ import annotations
 
-from timerun import ElapsedTime, NoDurationCaptured, Timer
+from typing import TYPE_CHECKING
+
+import pytest
+
+from timerun import ElapsedTime, NoDurationCapturedError, Timer
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from contextlib import AbstractContextManager
 
 # =========================================================================== #
 # Test suite for using Timer as a context manager.                            #
@@ -12,7 +20,7 @@ from timerun import ElapsedTime, NoDurationCaptured, Timer
 
 
 def test_use_timer_as_context_manager_single_run(
-    patch_split: Callable,
+    patch_split: Callable[[Iterable[int]], AbstractContextManager[None]],
     timer: Timer,
     elapsed_1_ms: ElapsedTime,
 ) -> None:
@@ -29,16 +37,16 @@ def test_use_timer_as_context_manager_single_run(
         A newly created Timer with unlimited storage size.
     elapsed_1_ms : ElapsedTime
         Elapsed Time of 1 microsecond.
+
     """
-    with patch_split(elapsed_times=[1000]):
-        with timer:
-            pass
+    with patch_split([1000]), timer:
+        pass
 
     assert timer.duration == elapsed_1_ms
 
 
 def test_use_timer_as_context_manager_multiple_run(
-    patch_split: Callable,
+    patch_split: Callable[[Iterable[int]], AbstractContextManager[None]],
     timer: Timer,
     elapsed_100_ns: ElapsedTime,
     elapsed_1_ms: ElapsedTime,
@@ -61,8 +69,9 @@ def test_use_timer_as_context_manager_multiple_run(
         Elapsed Time of 1 microsecond.
     elapsed_1_pt_5_ms : ElapsedTime
         Elapsed Time of 1.5 microseconds.
+
     """
-    with patch_split(elapsed_times=[100, 1000, 1500]):
+    with patch_split([100, 1000, 1500]):
         for _ in range(3):
             with timer:
                 pass
@@ -79,7 +88,7 @@ class TestAsDecorator:
 
     def test_single_run(
         self,
-        patch_split: Callable,
+        patch_split: Callable[[Iterable[int]], AbstractContextManager[None]],
         timer: Timer,
         elapsed_1_ms: ElapsedTime,
     ) -> None:
@@ -96,19 +105,20 @@ class TestAsDecorator:
             A newly created Timer with unlimited storage size.
         elapsed_1_ms : ElapsedTime
             Elapsed Time of 1 microsecond.
+
         """
 
         @timer
         def func() -> None:
             pass
 
-        with patch_split(elapsed_times=[1000]):
+        with patch_split([1000]):
             func()
         assert timer.duration == elapsed_1_ms
 
     def test_multiple_run(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
-        patch_split: Callable,
+        patch_split: Callable[[Iterable[int]], AbstractContextManager[None]],
         timer: Timer,
         elapsed_100_ns: ElapsedTime,
         elapsed_1_ms: ElapsedTime,
@@ -131,13 +141,14 @@ class TestAsDecorator:
             Elapsed Time of 1 microsecond.
         elapsed_1_pt_5_ms : ElapsedTime
             Elapsed Time of 1.5 microseconds.
+
         """
 
         @timer
         def func() -> None:
             pass
 
-        with patch_split(elapsed_times=[100, 1000, 1500]):
+        with patch_split([100, 1000, 1500]):
             for _ in range(3):
                 func()
 
@@ -155,14 +166,15 @@ class TestNoElapsedTimeCapturedException:
         """Test access duration attribute before capturing anything.
 
         Test tries to access duration attribute before capturing
-        anything, expected to see ``NoDurationCaptured`` exception.
+        anything, expected to see ``NoDurationCapturedError`` exception.
 
         Parameters
         ----------
         timer : Timer
             A newly created Timer with unlimited storage size.
+
         """
-        with raises(NoDurationCaptured):
+        with pytest.raises(NoDurationCapturedError):
             _ = timer.duration
 
 
@@ -171,15 +183,15 @@ class TestInit:
 
     def test_use_customized_duration_list(self) -> None:
         """Test capture durations into an existing list."""
-        durations: List[ElapsedTime] = []
+        durations: list[ElapsedTime] = []
         timer = Timer(storage=durations)
         assert (
-            timer._durations is durations  # pylint: disable=protected-access
+            timer._durations is durations  # pylint: disable=protected-access  # noqa: SLF001
         )
 
     def test_max_storage_limitation(
         self,
-        patch_split: Callable,
+        patch_split: Callable[[Iterable[int]], AbstractContextManager[None]],
         elapsed_1_ms: ElapsedTime,
         elapsed_1_pt_5_ms: ElapsedTime,
     ) -> None:
@@ -196,10 +208,11 @@ class TestInit:
             Elapsed Time of 1 microsecond.
         elapsed_1_pt_5_ms : ElapsedTime
             Elapsed Time of 1.5 microseconds.
+
         """
         timer = Timer(max_len=2)
 
-        with patch_split(elapsed_times=[100, 1000, 1500]):
+        with patch_split([100, 1000, 1500]):
             for _ in range(3):
                 with timer:
                     pass

@@ -1,36 +1,22 @@
 """A collection of shared PyTest fixtures for timerun."""
 
-from contextlib import contextmanager
-from typing import Callable, ContextManager, Iterable, Iterator, Tuple
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from unittest.mock import Mock
 
-from pytest import MonkeyPatch, fixture
+import pytest
 
 from timerun import ElapsedTime, Stopwatch, Timer
-
-__all__: Tuple[str, ...] = (
-    # -- Patcheres --
-    "patch_clock",
-    "patch_split",
-    # -- Initiated Instances --
-    "stopwatch",
-    "timer",
-    # -- Elapsed Time --
-    "elapsed_1_ns",
-    "elapsed_100_ns",
-    "elapsed_1_ms",
-    "elapsed_1_pt_5_ms",
-    "elapsed_1_sec",
-)
-
 
 # =========================================================================== #
 #                                  Patcheres                                  #
 # =========================================================================== #
 
 
-@fixture
-def patch_clock(monkeypatch: MonkeyPatch) -> Callable[[int], ContextManager]:
+@pytest.fixture
+def patch_clock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Callable[[int], AbstractContextManager[None]]:
     """Patch the clock method in Stopwatch.
 
     Parameters
@@ -40,14 +26,15 @@ def patch_clock(monkeypatch: MonkeyPatch) -> Callable[[int], ContextManager]:
 
     Returns
     -------
-    Callable[[int], ContextManager]
+    Callable[[int], AbstractContextManager[None]]
         A context manager takes integer argument and patch that value as
         the return value of the clock method.
 
     Examples
     --------
-    >>> with patch_clock(elapsed_ns=1):
+    >>> with patch_clock(1):
     ...     pass
+
     """
 
     @contextmanager
@@ -58,34 +45,41 @@ def patch_clock(monkeypatch: MonkeyPatch) -> Callable[[int], ContextManager]:
         ----------
         elapsed_ns : int
             The value should be returned by the clock method.
+
+        Yields
+        ------
+        None
+            Control is yielded back to the caller.
+
         """
-        monkeypatch.setattr(Stopwatch, "_clock", lambda self: elapsed_ns)
+        monkeypatch.setattr(Stopwatch, "_clock", lambda _: elapsed_ns)
         yield
 
     return patch
 
 
-@fixture
+@pytest.fixture
 def patch_split(
-    monkeypatch: MonkeyPatch,
-) -> Callable[[Iterable[int]], ContextManager]:
+    monkeypatch: pytest.MonkeyPatch,
+) -> Callable[[Iterable[int]], AbstractContextManager[None]]:
     """Patch the split method in Timer.
 
     Parameters
     ----------
     monkeypatch : MonkeyPatch
-         The fixture has been used to patch the split method.
+        The fixture has been used to patch the split method.
 
     Returns
     -------
-    Callable[[Iterable[int]], ContextManager]
+    Callable[[Iterable[int]], AbstractContextManager[None]]
         A context manager takes a list of integers as nanoseconds and
         patch those as the return values of the elapse method.
 
     Examples
     --------
-    >>> with patch_split(elapsed_times=[100, 200, 300]):
+    >>> with patch_split([100, 200, 300]):
     ...     pass
+
     """
 
     @contextmanager
@@ -96,11 +90,17 @@ def patch_split(
         ----------
         elapsed_times : Iterable[int]
             The nanoseconds should be returned by the split method.
+
+        Yields
+        ------
+        None
+            Control is yielded back to the caller.
+
         """
         mock_stopwatch = Mock(spec=["reset", "split"])
-        mock_stopwatch.split.side_effect = [
-            ElapsedTime(nanoseconds=t) for t in elapsed_times
-        ]
+        mock_stopwatch.split.configure_mock(
+            side_effect=[ElapsedTime(nanoseconds=t) for t in elapsed_times],
+        )
 
         monkeypatch.setattr(Timer, "_stopwatch", mock_stopwatch)
         yield
@@ -113,17 +113,31 @@ def patch_split(
 # =========================================================================== #
 
 
-@fixture
+@pytest.fixture
 def stopwatch() -> Stopwatch:
-    """A newly created Stopwatch started at time ``0``."""
+    """Create a Stopwatch started at time ``0``.
+
+    Returns
+    -------
+    Stopwatch
+        A stopwatch started at time ``0``.
+
+    """
     watch: Stopwatch = Stopwatch()
-    watch._start = 0  # pylint: disable=protected-access
+    watch._start = 0  # pylint: disable=protected-access  # noqa: SLF001
     return watch
 
 
-@fixture
+@pytest.fixture
 def timer() -> Timer:
-    """A newly created Timer with unlimited storage size."""
+    """Create a Timer with unlimited storage size.
+
+    Returns
+    -------
+    Timer
+        A newly created Timer.
+
+    """
     return Timer()
 
 
@@ -132,31 +146,66 @@ def timer() -> Timer:
 # =========================================================================== #
 
 
-@fixture
+@pytest.fixture
 def elapsed_1_ns() -> ElapsedTime:
-    """Elapsed Time of 1 nanosecond."""
+    """Elapsed Time of 1 nanosecond.
+
+    Returns
+    -------
+    ElapsedTime
+        Elapsed time of 1 nanosecond.
+
+    """
     return ElapsedTime(nanoseconds=1)
 
 
-@fixture
+@pytest.fixture
 def elapsed_100_ns() -> ElapsedTime:
-    """Elapsed Time of 100 nanoseconds."""
+    """Elapsed Time of 100 nanoseconds.
+
+    Returns
+    -------
+    ElapsedTime
+        Elapsed time of 100 nanoseconds.
+
+    """
     return ElapsedTime(nanoseconds=100)
 
 
-@fixture
+@pytest.fixture
 def elapsed_1_ms() -> ElapsedTime:
-    """Elapsed Time of 1 microsecond."""
+    """Elapsed Time of 1 microsecond.
+
+    Returns
+    -------
+    ElapsedTime
+        Elapsed time of 1 microsecond.
+
+    """
     return ElapsedTime(nanoseconds=1000)
 
 
-@fixture
+@pytest.fixture
 def elapsed_1_pt_5_ms() -> ElapsedTime:
-    """Elapsed Time of 1.5 microseconds."""
+    """Elapsed Time of 1.5 microseconds.
+
+    Returns
+    -------
+    ElapsedTime
+        Elapsed time of 1.5 microseconds.
+
+    """
     return ElapsedTime(nanoseconds=1500)
 
 
-@fixture
+@pytest.fixture
 def elapsed_1_sec() -> ElapsedTime:
-    """Elapsed Time of 1 second."""
+    """Elapsed Time of 1 second.
+
+    Returns
+    -------
+    ElapsedTime
+        Elapsed time of 1 second.
+
+    """
     return ElapsedTime(nanoseconds=int(1e9))
