@@ -7,9 +7,10 @@
 <p align="center"><strong>TimeRun</strong> - <em>Python library for elapsed time measurement.</em></p>
 
 <p align="center">
-    <a href="https://github.com/HH-MWB/timerun/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/pypi/l/timerun.svg"></a>
-    <a href="https://pypi.org/project/timerun/"><img alt="PyPI Latest Release" src="https://img.shields.io/pypi/v/timerun.svg"></a>
-    <a href="https://pypi.org/project/timerun/"><img alt="Package Status" src="https://img.shields.io/pypi/status/timerun.svg"></a>
+    <a href="https://github.com/HH-MWB/timerun/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/pypi/l/timerun.svg"></a>
+    <a href="https://pypi.org/project/timerun/"><img alt="Version" src="https://img.shields.io/pypi/v/timerun.svg"></a>
+    <a href="https://pypi.org/project/timerun/"><img alt="Status" src="https://img.shields.io/pypi/status/timerun.svg"></a>
+    <a href="https://pepy.tech/project/timerun"><img alt="Total Downloads" src="https://static.pepy.tech/badge/timerun"></a>
 </p>
 
 TimeRun is a simple, yet elegant elapsed time measurement library for [Python](https://www.python.org). It is distributed as a single file module and has no dependencies other than the [Python Standard Library](https://docs.python.org/3/library/).
@@ -124,4 +125,4 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/HH-MWB/timerun/blob/master/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/HH-MWB/timerun/blob/main/LICENSE) file for details.
