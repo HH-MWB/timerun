@@ -7,11 +7,11 @@
 <p align="center"><strong>TimeRun</strong> - <em>Python library for elapsed time measurement.</em></p>
 
 <p align="center">
-    <a href="https://github.com/HH-MWB/timerun/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/pypi/l/timerun.svg"></a>
-    <a href="https://pypi.org/project/timerun/"><img alt="PyPI Latest Release" src="https://img.shields.io/pypi/v/timerun.svg"></a>
-    <a href="https://pypi.org/project/timerun/"><img alt="Package Status" src="https://img.shields.io/pypi/status/timerun.svg"></a>
-    <a href="https://github.com/psf/black/"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
-    <a href="https://pycqa.github.io/isort/"><img alt="Imports: isort" src="https://img.shields.io/badge/%20imports-isort-%231674b1"></a>
+    <a href="https://pypi.org/project/timerun/"><img alt="Version" src="https://img.shields.io/pypi/v/timerun.svg"></a>
+    <a href="https://pypi.org/project/timerun/"><img alt="Status" src="https://img.shields.io/pypi/status/timerun.svg"></a>
+    <a href="https://github.com/HH-MWB/timerun/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/pypi/l/timerun.svg"></a>
+    <a href="https://codecov.io/gh/HH-MWB/timerun"><img alt="Coverage" src="https://codecov.io/gh/HH-MWB/timerun/branch/main/graph/badge.svg"></a>
+    <a href="https://pepy.tech/project/timerun"><img alt="Total Downloads" src="https://static.pepy.tech/badge/timerun"></a>
 </p>
 
 TimeRun is a simple, yet elegant elapsed time measurement library for [Python](https://www.python.org). It is distributed as a single file module and has no dependencies other than the [Python Standard Library](https://docs.python.org/3/library/).
@@ -45,24 +45,79 @@ pip install git+https://github.com/HH-MWB/timerun.git
 ### Measure Code Block
 
 ```python
+>>> import time
 >>> from timerun import Timer
 >>> with Timer() as timer:
-...     pass  # put your code here
+...     time.sleep(0.1)  # your code here
 >>> print(timer.duration)
-0:00:00.000000100
+0:00:00.100000000
 ```
 
 ### Measure Function
 
 ```python
+>>> import time
 >>> from timerun import Timer
 >>> timer = Timer()
 >>> @timer
 ... def func():
-...     pass  # put your code here
+...     time.sleep(0.1)  # your code here
 >>> func()
 >>> print(timer.duration)
-0:00:00.000000100
+0:00:00.100000000
+```
+
+### Measure Async Function
+
+```python
+>>> import asyncio
+>>> from timerun import Timer
+>>> timer = Timer()
+>>> @timer
+... async def async_func():
+...     await asyncio.sleep(0.1)  # your code here
+>>> asyncio.run(async_func())
+>>> print(timer.duration)
+0:00:00.100000000
+```
+
+### Measure Async Code Block
+
+```python
+>>> import asyncio
+>>> from timerun import Timer
+>>> async def async_code():
+...     async with Timer() as timer:
+...         await asyncio.sleep(0.1)  # your code here
+...     print(timer.duration)
+>>> asyncio.run(async_code())
+0:00:00.100000000
+```
+
+### Multiple Measurements
+
+```python
+>>> import time
+>>> from timerun import Timer
+>>> timer = Timer()
+>>> with timer:
+...     time.sleep(0.1)  # your code here
+>>> with timer:
+...     time.sleep(0.1)  # your code here
+>>> print(timer.duration)  # Last duration
+0:00:00.100000000
+>>> print(timer.durations)  # All durations
+(ElapsedTime(nanoseconds=100000000), ElapsedTime(nanoseconds=100000000))
+```
+
+### Advanced Options
+
+```python
+>>> from timerun import Timer
+>>> # Exclude sleep time from measurements
+>>> timer = Timer(count_sleep=False)
+>>> # Limit storage to last 10 measurements
+>>> timer = Timer(max_len=10)
 ```
 
 ## Contributing
@@ -71,4 +126,4 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/HH-MWB/timerun/blob/master/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/HH-MWB/timerun/blob/main/LICENSE) file for details.

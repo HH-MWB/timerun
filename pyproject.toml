@@ -28,13 +28,14 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Monitoring",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov"]
+dev = ["pytest", "pytest-asyncio", "pytest-cov"]
 
 [project.urls]
 Homepage = "https://github.com/HH-MWB/timerun"
@@ -49,19 +50,3 @@ license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
 version = { attr = "timerun.__version__" }
-
-[tool.bandit]
-skips = ["B101"] # Skip assert_used test
-
-[tool.black]
-line-length = 79
-target-version = [
-    "py39",
-    "py310",
-    "py311",
-    "py312",
-    "py313",
-]
-
-[tool.isort]
-profile = "black"

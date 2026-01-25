@@ -11,35 +11,24 @@ repos:
       - id: check-yaml
       - id: check-toml
 
+  - repo: https://github.com/HH-MWB/pyenforce
+    rev: v0.1.0
+    hooks:
+      - id: ruff-format
+      - id: ruff-check
+      - id: mypy
+        additional_dependencies:
+          - ".[mypy]"     # Required to re-adds mypy as a dependency
+          - pytest
+      - id: pylint
+        additional_dependencies:
+          - ".[pylint]"     # Required to re-adds Pylint as a dependency
+          - pytest
+      - id: bandit
+      - id: semgrep
+      - id: vulture
+
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.37.1
     hooks:
       - id: yamllint
-
-  - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
-    hooks:
-      - id: isort
-
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id: black
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.1
-    hooks:
-      - id: mypy
-
-  - repo: https://github.com/pylint-dev/pylint
-    rev: v3.3.8
-    hooks:
-      - id: pylint
-        additional_dependencies:
-          - pytest
-
-  - repo: https://github.com/pycqa/bandit
-    rev: '1.8.6'
-    hooks:
-      - id: bandit
-        args: ['-c', 'pyproject.toml']

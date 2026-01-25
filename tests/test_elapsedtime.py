@@ -1,9 +1,11 @@
 """A collection of tests for class ``ElapsedTime``."""
 
+# pylint: disable=no-self-use,magic-value-comparison
+
 from dataclasses import FrozenInstanceError
 from datetime import timedelta
 
-from pytest import raises
+import pytest
 
 from timerun import ElapsedTime
 
@@ -35,9 +37,10 @@ class TestImmutable:  # pylint: disable=too-few-public-methods
         ----------
         elapsed_1_ns : ElapsedTime
             A ElapsedTime instance will be using to update attribute.
+
         """
-        with raises(FrozenInstanceError):
-            elapsed_1_ns.nanoseconds = 0  # type: ignore
+        with pytest.raises(FrozenInstanceError):
+            elapsed_1_ns.nanoseconds = 0  # type: ignore[misc]
         assert elapsed_1_ns.nanoseconds == 1
 
 
@@ -84,11 +87,13 @@ class TestTimedeltaAttribute:
         ----------
         elapsed_1_ms : ElapsedTime
             Elapsed Time of 1 microsecond.
+
         """
         assert elapsed_1_ms.timedelta == timedelta(microseconds=1)
 
     def test_nanoseconds_accuracy(
-        self, elapsed_1_pt_5_ms: ElapsedTime
+        self,
+        elapsed_1_pt_5_ms: ElapsedTime,
     ) -> None:
         """Test using ElapsedTime of 1.5 microseconds.
 
@@ -99,6 +104,7 @@ class TestTimedeltaAttribute:
         ----------
         elapsed_1_pt_5_ms : ElapsedTime
             Elapsed Time of 1.5 microseconds.
+
         """
         assert elapsed_1_pt_5_ms.timedelta == timedelta(microseconds=1)
 
@@ -107,7 +113,8 @@ class TestStr:
     """Test suite for calling str function on ElapsedTime."""
 
     def test_elapsed_time_seconds_as_decimals(
-        self, elapsed_100_ns: ElapsedTime
+        self,
+        elapsed_100_ns: ElapsedTime,
     ) -> None:
         """Test elapsed time in seconds is in decimal.
 
@@ -118,11 +125,13 @@ class TestStr:
         ----------
         elapsed_100_ns : ElapsedTime
             Elapsed Time to be used to call ``str``.
+
         """
         assert str(elapsed_100_ns) == "0:00:00.000000100"
 
     def test_elapsed_time_seconds_as_integer(
-        self, elapsed_1_sec: ElapsedTime
+        self,
+        elapsed_1_sec: ElapsedTime,
     ) -> None:
         """Test elapsed time in seconds is an integer.
 
@@ -133,6 +142,7 @@ class TestStr:
         ----------
         elapsed_1_sec : ElapsedTime
             Elapsed Time to be used to call ``str``.
+
         """
         assert str(elapsed_1_sec) == "0:00:01"
 
@@ -150,5 +160,6 @@ class TestRepr:  # pylint: disable=too-few-public-methods
         ----------
         elapsed_100_ns : ElapsedTime
             Elapsed Time to be used to call ``repr``.
+
         """
         assert repr(elapsed_100_ns) == "ElapsedTime(nanoseconds=100)"
