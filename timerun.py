@@ -270,14 +270,16 @@ class Timer(ContextDecorator):
 
     Examples
     --------
+    >>> import time
     >>> with Timer() as timer:
-    ...     pass
+    ...     time.sleep(0.1)  # your code here
     >>> print(timer.duration)
 
+    >>> import time
     >>> timer = Timer()
     >>> @timer
     ... def func():
-    ...     pass
+    ...     time.sleep(0.1)  # your code here
     >>> func()
     >>> print(timer.duration)
 
@@ -285,13 +287,13 @@ class Timer(ContextDecorator):
     >>> timer = Timer()
     >>> @timer
     ... async def async_func():
-    ...     await asyncio.sleep(0.1)
+    ...     await asyncio.sleep(0.1)  # your code here
     >>> asyncio.run(async_func())
     >>> print(timer.duration)
 
     >>> async def async_code():
     ...     async with Timer() as timer:
-    ...         await asyncio.sleep(0.1)
+    ...         await asyncio.sleep(0.1)  # your code here
     ...     print(timer.duration)
     >>> asyncio.run(async_code())
 
