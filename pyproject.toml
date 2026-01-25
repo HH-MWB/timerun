@@ -34,7 +34,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov"]
+dev = ["pytest", "pytest-asyncio", "pytest-cov"]
 
 [project.urls]
 Homepage = "https://github.com/HH-MWB/timerun"

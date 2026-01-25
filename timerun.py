@@ -6,11 +6,17 @@ from collections import deque
 from contextlib import ContextDecorator
 from dataclasses import dataclass
 from datetime import timedelta
+from inspect import isasyncgenfunction, iscoroutinefunction
 from time import perf_counter_ns, process_time_ns
-from typing import TYPE_CHECKING, Protocol, TypeVar
+from typing import TYPE_CHECKING, Protocol, TypeVar, cast
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import (
+        AsyncGenerator,
+        Awaitable,
+        Callable,
+        Iterator,
+    )
 
 __all__: tuple[str, ...] = (  # noqa: RUF022
     # -- Core --
@@ -22,7 +28,7 @@ __all__: tuple[str, ...] = (  # noqa: RUF022
     "TimeRunError",
 )
 
-__version__: str = "0.3.0"
+__version__: str = "0.4.0"
 
 
 # =========================================================================== #
@@ -267,7 +273,6 @@ class Timer(ContextDecorator):
     >>> with Timer() as timer:
     ...     pass
     >>> print(timer.duration)
-    0:00:00.000000100
 
     >>> timer = Timer()
     >>> @timer
@@ -275,7 +280,20 @@ class Timer(ContextDecorator):
     ...     pass
     >>> func()
     >>> print(timer.duration)
-    0:00:00.000000100
+
+    >>> import asyncio
+    >>> timer = Timer()
+    >>> @timer
+    ... async def async_func():
+    ...     await asyncio.sleep(0.1)
+    >>> asyncio.run(async_func())
+    >>> print(timer.duration)
+
+    >>> async def async_code():
+    ...     async with Timer() as timer:
+    ...         await asyncio.sleep(0.1)
+    ...     print(timer.duration)
+    >>> asyncio.run(async_code())
 
     """
 
@@ -303,6 +321,100 @@ class Timer(ContextDecorator):
         """Stop the timer and save the duration."""
         duration: ElapsedTime = self._stopwatch.split()
         self._durations.append(duration)
+
+    async def __aenter__(self) -> Timer:  # noqa: PYI034
+        """Start the timer (async context manager)."""
+        self._stopwatch.reset()
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        """Stop the timer and save the duration (async context manager)."""
+        duration: ElapsedTime = self._stopwatch.split()
+        self._durations.append(duration)
+
+    def _wrap_async_function(  # type: ignore[explicit-any]
+        self,
+        func: Callable[..., Awaitable[object]],
+    ) -> Callable[..., Awaitable[object]]:
+        """Wrap an async function to measure its execution time."""
+
+        async def async_wrapper(*args: object, **kwargs: object) -> object:
+            """Wrap async function execution with timing.
+
+            Parameters
+            ----------
+            *args : object
+                Positional arguments passed to the wrapped function.
+            **kwargs : object
+                Keyword arguments passed to the wrapped function.
+
+            Returns
+            -------
+            object
+                The result of the wrapped async function.
+
+            """
+            async with self:
+                return await func(*args, **kwargs)
+
+        return async_wrapper
+
+    def _wrap_async_generator(  # type: ignore[explicit-any]
+        self,
+        func: Callable[..., object],
+    ) -> Callable[..., AsyncGenerator[object]]:
+        """Wrap an async generator function to measure its execution time."""
+
+        async def async_gen_wrapper(
+            *args: object,
+            **kwargs: object,
+        ) -> AsyncGenerator[object]:
+            """Wrap async generator function execution with timing.
+
+            Parameters
+            ----------
+            *args : object
+                Positional arguments passed to the wrapped function.
+            **kwargs : object
+                Keyword arguments passed to the wrapped function.
+
+            Yields
+            ------
+            object
+                Items yielded from the wrapped async generator function.
+
+            """
+            async with self:
+                async for item in cast(
+                    "AsyncGenerator[object]",
+                    func(*args, **kwargs),
+                ):
+                    yield item
+
+        return async_gen_wrapper
+
+    def __call__(  # type: ignore[override,explicit-override,explicit-any]
+        self,
+        func: Callable[..., object] | Callable[..., Awaitable[object]],
+    ) -> Callable[..., object] | Callable[..., Awaitable[object]]:
+        """Wrap a function (sync or async) to measure its execution time.
+
+        Parameters
+        ----------
+        func : Callable
+            The function to be decorated (can be sync or async).
+
+        Returns
+        -------
+        Callable
+            A wrapped function that measures execution time.
+
+        """
+        if iscoroutinefunction(func):
+            return self._wrap_async_function(func)
+        if isasyncgenfunction(func):
+            return self._wrap_async_generator(func)
+        return super().__call__(func)
 
     @property
     def durations(self) -> tuple[ElapsedTime, ...]:

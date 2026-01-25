@@ -65,6 +65,96 @@ pip install git+https://github.com/HH-MWB/timerun.git
 0:00:00.000000100
 ```
 
+### Measure Async Function
+
+```python
+>>> import asyncio
+>>> from timerun import Timer
+>>> timer = Timer()
+>>> @timer
+... async def async_func():
+...     await asyncio.sleep(0.1)
+>>> asyncio.run(async_func())
+>>> print(timer.duration)
+0:00:00.100000000
+```
+
+### Measure Async Code Block
+
+```python
+>>> import asyncio
+>>> from timerun import Timer
+>>> async def async_code():
+...     async with Timer() as timer:
+...         await asyncio.sleep(0.1)
+...     print(timer.duration)
+>>> asyncio.run(async_code())
+0:00:00.100000000
+```
+
+### Multiple Measurements
+
+```python
+>>> from timerun import Timer
+>>> timer = Timer()
+>>> with timer:
+...     pass
+>>> with timer:
+...     pass
+>>> print(timer.duration)  # Last duration
+0:00:00.000000100
+>>> print(timer.durations)  # All durations
+(ElapsedTime(nanoseconds=100), ElapsedTime(nanoseconds=100))
+```
+
+### Advanced Options
+
+```python
+>>> from timerun import Timer
+>>> # Exclude sleep time from measurements
+>>> timer = Timer(count_sleep=False)
+>>> # Limit storage to last 10 measurements
+>>> timer = Timer(max_len=10)
+```
+
+## Usage
+
+### Stopwatch
+
+The `Stopwatch` class provides manual control over timing measurements:
+
+```python
+>>> from timerun import Stopwatch
+>>> stopwatch = Stopwatch()
+>>> stopwatch.reset()
+>>> # ... your code here ...
+>>> elapsed = stopwatch.split()
+>>> print(elapsed)
+0:00:00.000000100
+```
+
+You can configure whether to count sleep time:
+
+```python
+>>> # Exclude sleep time from measurements
+>>> stopwatch = Stopwatch(count_sleep=False)
+```
+
+### ElapsedTime
+
+The `ElapsedTime` class represents elapsed time in nanoseconds with high precision:
+
+```python
+>>> from timerun import ElapsedTime
+>>> t = ElapsedTime(1000000000)  # 1 second in nanoseconds
+>>> print(t)
+0:00:01
+>>> print(t.nanoseconds)
+1000000000
+>>> print(t.timedelta)  # Convert to timedelta
+0:00:01
+```
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
