@@ -35,7 +35,7 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "pytest-cov"]
+dev = ["behave", "coverage"]
 
 [project.urls]
 Homepage = "https://github.com/HH-MWB/timerun"
@@ -44,9 +44,64 @@ Changelog = "https://github.com/HH-MWB/timerun/releases"
 PyPI = "https://pypi.org/project/timerun"
 
 [tool.setuptools]
+py-modules = ["timerun"]
 zip-safe = true
 include-package-data = false
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
 version = { attr = "timerun.__version__" }
+
+[tool.bandit]
+exclude_dirs = ["features/steps"]
+
+[tool.bandit.try_except_pass]
+check_typed_exception = true
+
+[tool.mypy]
+strict = true
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_any_explicit = true
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+strict_equality = true
+strict_equality_for_none = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_ignores = true
+enable_error_code = [
+    "deprecated",
+    "exhaustive-match",
+    "explicit-override",
+    "ignore-without-code",
+    "possibly-undefined",
+    "redundant-expr",
+    "redundant-self",
+    "truthy-bool",
+    "unimported-reveal",
+    "unused-awaitable",
+]
+
+[tool.pylint.messages_control]
+disable = ["not-callable"]  # false positive for behave's when/then decorators
+
+[tool.ruff]
+line-length = 79
+fix = true
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",  # Incompatible with D211 (no-blank-line-before-class)
+    "D213",  # Incompatible with D212 (multi-line-summary-first-line)
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+[tool.ruff.lint.per-file-ignores]
+"features/steps/*.py" = ["S101"]

@@ -22,12 +22,13 @@ init: ## Set up Python development environment with pre-commit hooks
 	@echo "Development environment ready! To activate it, run: source $(VENV_DIR)/bin/activate"
 
 .PHONY: test
-test: ## Run all tests and display coverage ratio
-	@"$(VENV_DIR)/bin/pytest" tests/ --cov=timerun --cov-report=term-missing
+test: ## Run BDD tests with behave and display coverage
+	@"$(VENV_DIR)/bin/coverage" run --source=timerun -m behave
+	@"$(VENV_DIR)/bin/coverage" report --show-missing
 
 .PHONY: clean
 clean: ## Delete all temporary files including venv
 	@rm -rf "$(VENV_DIR)" *.egg-info
-	@rm -rf .mypy_cache .pytest_cache .coverage htmlcov
+	@rm -rf .mypy_cache .coverage htmlcov
 	@find . -name "*.pyc" -delete
 	@find . -name "__pycache__" -type d -exec rm -rf {} +
