@@ -46,3 +46,27 @@ class TimeSpan:
     def timedelta(self) -> timedelta:
         """Duration as a datetime.timedelta."""
         return timedelta(microseconds=self.duration // 1000)
+
+
+@dataclass
+class Measurement:
+    """A measurement collection: wall time, CPU time, and optional metadata.
+
+    Stores one measurement only. Use this to collect the result of a single
+    timing run: wall-clock time, CPU time, and any user-defined metadata.
+
+    Attributes
+    ----------
+    wall_time : TimeSpan
+        Elapsed (wall-clock) time for the measurement.
+    cpu_time : TimeSpan
+        CPU time for the measurement.
+    metadata : dict
+        Optional key-value metadata (e.g., tags, run id). Defaults to ``{}``;
+        mutate in place to add or change entries.
+
+    """
+
+    wall_time: TimeSpan
+    cpu_time: TimeSpan
+    metadata: dict[object, object] = field(default_factory=dict)

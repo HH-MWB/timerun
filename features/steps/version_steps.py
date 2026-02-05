@@ -5,11 +5,16 @@ from behave.runner import Context
 
 import timerun
 
+# --- When ---
+
 
 @when("I read the package version")
 def step_read_version(context: Context) -> None:
     """Read the package version and store it for Then steps."""
     context.version = getattr(timerun, "__version__", None)
+
+
+# --- Then ---
 
 
 @then("the package has a version")

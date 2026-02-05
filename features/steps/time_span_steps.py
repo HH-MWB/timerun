@@ -26,6 +26,9 @@ register_type(
 )
 
 
+# --- Given ---
+
+
 @given("a time span from {start:n} to {end:n}")
 def step_given_time_span(context: Context, start: int, end: int) -> None:
     """Create a TimeSpan(start, end) and store as context.time_span."""
@@ -43,8 +46,11 @@ def step_given_span_of_duration(
     setattr(context, f"time_span_{name.lower()}", span)
 
 
+# --- Then ---
+
+
 @then("the duration is {expected:n} nanoseconds")
-def step_duration_is(context: Context, expected: int) -> None:
+def step_time_span_duration_is(context: Context, expected: int) -> None:
     """Assert context.time_span.duration equals expected."""
     assert context.time_span.duration == expected
 
@@ -60,18 +66,18 @@ def step_timedelta_is_seconds_standard_type(
     assert result == timedelta(seconds=seconds)
 
 
+@then("time span A {relation:Relation} time span B")
+def step_time_span_a_relation_b(context: Context, relation: str) -> None:
+    """Assert time_span_a and time_span_b satisfy the given relation."""
+    op = RELATION_OPERATORS[relation]
+    assert op(context.time_span_a, context.time_span_b)
+
+
 @then("the {which:w} value is {expected:n}")
-def step_value_is(
+def step_time_span_value_is(
     context: Context,
     which: str,
     expected: int,
 ) -> None:
     """Assert time_span.start or time_span.end equals expected."""
     assert getattr(context.time_span, which) == expected
-
-
-@then("time span A {relation:Relation} time span B")
-def step_compare_a_b(context: Context, relation: str) -> None:
-    """Assert time_span_a and time_span_b satisfy the given relation."""
-    op = RELATION_OPERATORS[relation]
-    assert op(context.time_span_a, context.time_span_b)
