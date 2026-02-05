@@ -22,7 +22,17 @@ init: ## Set up Python development environment with pre-commit hooks
 	@echo "Development environment ready! To activate it, run: source $(VENV_DIR)/bin/activate"
 
 .PHONY: test
-test: ## Run BDD tests with behave and display coverage
+test: ## Run BDD tests (progress + summary + coverage)
+	@"$(VENV_DIR)/bin/coverage" run --source=timerun -m behave -f progress
+	@"$(VENV_DIR)/bin/coverage" report --show-missing
+
+.PHONY: test-summary
+test-summary: ## Run BDD tests (summary and coverage only; use 'make test' to see which feature failed)
+	@"$(VENV_DIR)/bin/coverage" run --source=timerun -m behave -f null
+	@"$(VENV_DIR)/bin/coverage" report --show-missing
+
+.PHONY: test-verbose
+test-verbose: ## Run BDD tests with full scenario/step output (for debugging failures)
 	@"$(VENV_DIR)/bin/coverage" run --source=timerun -m behave
 	@"$(VENV_DIR)/bin/coverage" report --show-missing
 

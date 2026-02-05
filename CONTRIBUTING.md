@@ -85,15 +85,19 @@ TimeRun uses **behavior-driven development (BDD)** with [behave](https://behave.
 
 ### Run tests
 
-| Command        | Description                          |
-|----------------|--------------------------------------|
-| `make test`    | Run BDD suite with coverage report   |
-| `behave`       | Run BDD suite only (no coverage)     |
+| Command            | Description                                                    |
+|--------------------|----------------------------------------------------------------|
+| `make test`        | Run BDD suite with progress + summary + coverage (default)     |
+| `make test-summary`| Summary and coverage only (minimal output)                     |
+| `make test-verbose`| Full scenario/step output (use when debugging failures)        |
+| `behave`           | Run BDD suite only (no coverage)                               |
 
 ### Run coverage manually
 
 ```bash
-coverage run --source=timerun -m behave
+coverage run --source=timerun -m behave        # full output
+coverage run --source=timerun -m behave -f progress   # progress + summary
+coverage run --source=timerun -m behave -f null       # summary only
 coverage report --show-missing
 ```
 

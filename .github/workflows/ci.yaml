@@ -46,7 +46,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          coverage run --source=timerun -m behave
+          coverage run --source=timerun -m behave -f progress
           coverage report
           coverage xml
 
