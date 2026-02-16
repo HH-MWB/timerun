@@ -4,7 +4,7 @@ import operator
 from datetime import timedelta
 
 import parse
-from behave import given, register_type, then
+from behave import given, register_type, then, when
 from behave.runner import Context
 
 import timerun
@@ -44,6 +44,18 @@ def step_given_span_of_duration(
     """Create a TimeSpan(0, duration) and store as context.time_span_<name>."""
     span = timerun.TimeSpan(start=0, end=duration)
     setattr(context, f"time_span_{name.lower()}", span)
+
+
+# --- When ---
+
+
+@when("I try to create a time span from {start:n} to {end:n}")
+def step_try_create_time_span(context: Context, start: int, end: int) -> None:
+    """Create TimeSpan(start, end); store exception in context.exception."""
+    try:
+        timerun.TimeSpan(start=start, end=end)
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        context.exception = e
 
 
 # --- Then ---

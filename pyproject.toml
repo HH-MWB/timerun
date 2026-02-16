@@ -85,6 +85,9 @@ enable_error_code = [
     "unused-awaitable",
 ]
 
+[tool.pylint.format]
+max-line-length = 79
+
 [tool.pylint.messages_control]
 disable = ["not-callable"]  # false positive for behave's when/then decorators
 

@@ -64,13 +64,3 @@ def step_measurement_metadata_empty_dict(context: Context) -> None:
     metadata = context.measurement.metadata
     assert isinstance(metadata, dict)
     assert not metadata
-
-
-@then('the measurement\'s metadata key "{key}" is "{value}"')
-def step_measurement_metadata_key_value(
-    context: Context,
-    key: str,
-    value: str,
-) -> None:
-    """Assert the measurement's metadata[key] equals value."""
-    assert context.measurement.metadata[key] == value
