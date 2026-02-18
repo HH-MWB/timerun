@@ -6,5 +6,4 @@ Feature: Package version
 
   Scenario: Package version is readable
     When I read the package version
-    Then the package has a version
-    And the version is a non-empty string
+    Then the version is a non-empty string

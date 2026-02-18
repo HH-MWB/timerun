@@ -7,42 +7,42 @@ Feature: Block timing
   # --- Basic timing: sync, async, CPU-bound ---
 
   Scenario: Blocking sleep with `with` yields wall time and near-zero CPU time
-    Given a blocking operation that takes around 10,000,000 nanoseconds
-    When I measure the blocking operation using `with`
+    Given a blocking operation that runs for around 10,000,000 nanoseconds
+    When I measure the operation using `with`
     Then the measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
     And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
 
   Scenario: Async sleep with `async with` yields wall time and near-zero CPU time
-    Given an async operation that takes around 10,000,000 nanoseconds
+    Given an async operation that runs for around 10,000,000 nanoseconds
     When I measure the async operation using `async with`
     Then the measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
     And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
 
   Scenario: CPU-bound block with `with` yields wall and CPU time close together
     Given a CPU-bound operation that runs for around 10,000,000 nanoseconds
-    When I measure the CPU-bound operation using `with`
+    When I measure the operation using `with`
     Then the measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
     And the measurement's CPU time duration is within the configured buffer of 10,000,000 nanoseconds
     And the measurement's CPU time is close to wall time
 
-  # --- One BlockTimer, multiple blocks or threads ---
+  # --- One Timer, multiple blocks or threads ---
 
-  Scenario: Two threads with one BlockTimer yield one measurement per thread
+  Scenario: Two threads with one Timer yield one measurement per thread
     Given each thread sleeps 5,000,000 nanoseconds
-    When I measure blocks from 2 threads using the same BlockTimer instance
+    When I measure blocks from 2 threads using the same Timer instance
     Then the measurements are from different threads
 
-  Scenario: Two sequential blocks with one BlockTimer yield correct durations
+  Scenario: Two sequential blocks with one Timer yield correct durations
     Given the first block duration is 5,000,000 nanoseconds
     And the second block duration is 10,000,000 nanoseconds
-    When I measure two sequential blocks with the same BlockTimer instance
+    When I measure two sequential blocks with the same Timer instance
     Then the first measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
     And the second measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
 
-  Scenario: Nested blocks with one BlockTimer yield independent outer and inner times
+  Scenario: Nested blocks with one Timer yield independent outer and inner times
     Given the outer block duration is 20,000,000 nanoseconds
     And the inner block duration is 5,000,000 nanoseconds
-    When I measure nested blocks with the same BlockTimer instance
+    When I measure nested blocks with the same Timer instance
     Then the outer measurement's wall time duration is within the configured buffer of 25,000,000 nanoseconds
     And the inner measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
     And the outer measurement's wall time duration is at least the inner measurement's wall time duration
@@ -55,10 +55,10 @@ Feature: Block timing
     Then the measurement's metadata key "run_id" is "exp-1"
     And the measurement's metadata key "tag" is "baseline"
 
-  Scenario: Metadata set in first block is not visible in second block (reused BlockTimer)
+  Scenario: Metadata set in first block is not visible in second block (reused Timer)
     Given metadata run_id "same-run" and tag "original"
     And I will add metadata key "extra" as "from_first_block" in the first block
-    When I measure two blocks with the same BlockTimer instance and that metadata
+    When I measure two blocks with the same Timer instance and that metadata
     Then the first measurement's metadata key "extra" is "from_first_block"
     And the second measurement's metadata key "run_id" is "same-run"
     And the second measurement's metadata key "tag" is "original"
@@ -72,6 +72,6 @@ Feature: Block timing
     And an exception was propagated to the caller
 
   Scenario: __exit__ without __enter__ raises RuntimeError
-    When I call __exit__ on a BlockTimer instance without calling __enter__ first
+    When I call __exit__ on a Timer instance without calling __enter__ first
     Then a RuntimeError is raised
     And the error message is "__exit__ called without a matching __enter__"

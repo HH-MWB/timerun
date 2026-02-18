@@ -15,12 +15,12 @@ CPU_LOWER_SLACK_NS = 1_000_000
 
 
 def sleep_wall_at_least(nanoseconds: int) -> None:
-    """Sleep >= `nanoseconds` ns wall time. Jitter absorbed by BUFFER_NS."""
+    """Sleep at least nanoseconds (wall)."""
     time.sleep(nanoseconds / 1e9)
 
 
 def spin_wall_at_least(nanoseconds: int) -> None:
-    """Busy loop until wall time >= `nanoseconds` ns. Uses CPU."""
+    """Busy-loop at least nanoseconds (wall)."""
     start = time.perf_counter_ns()
     while time.perf_counter_ns() - start < nanoseconds:
         pass
@@ -31,7 +31,7 @@ def assert_wall_time_within_buffer(
     expected_ns: int,
     buffer_ns: int = BUFFER_NS,
 ) -> None:
-    """Assert wall_time.duration in [expected_ns, expected_ns + buffer_ns]."""
+    """Assert wall time in buffer."""
     assert measurement.wall_time is not None
     duration = measurement.wall_time.duration
     max_ns = expected_ns + buffer_ns
@@ -39,3 +39,12 @@ def assert_wall_time_within_buffer(
         f"wall time {duration} not in [{expected_ns}, {max_ns}] "
         f"(buffer={buffer_ns})"
     )
+
+
+def assert_metadata_key_equals(
+    measurement: object,
+    key: str,
+    value: str,
+) -> None:
+    """Assert metadata[key] equals value."""
+    assert measurement.metadata[key] == value

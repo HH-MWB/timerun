@@ -1,9 +1,15 @@
 """Step definitions for the Measurement record feature."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from behave import given, then, when
-from behave.runner import Context
 
 import timerun
+
+if TYPE_CHECKING:
+    from behave.runner import Context
 
 # --- Given ---
 
@@ -15,7 +21,7 @@ def step_given_typed_time_span(
     start: int,
     end: int,
 ) -> None:
-    """Set time span to context based on kind (wall/CPU)."""
+    """Set wall or CPU time span on context."""
     setattr(
         context,
         f"{kind.lower()}_time_span",
@@ -28,7 +34,7 @@ def step_given_typed_time_span(
 
 @when("I create a measurement from the wall time span and the CPU time span")
 def step_create_measurement_from_spans(context: Context) -> None:
-    """Build Measurement from wall/cpu spans; set context.measurement."""
+    """Build Measurement from spans."""
     context.measurement = timerun.Measurement(
         wall_time=context.wall_time_span,
         cpu_time=context.cpu_time_span,
@@ -41,7 +47,7 @@ def step_measurement_metadata_key_set(
     key: str,
     value: str,
 ) -> None:
-    """Set the measurement's metadata[key] to value."""
+    """Set measurement metadata[key]."""
     context.measurement.metadata[key] = value
 
 
@@ -54,7 +60,7 @@ def step_measurement_time_duration(
     kind: str,
     expected: int,
 ) -> None:
-    """Assert measurement wall_time or cpu_time duration equals expected."""
+    """Assert measurement duration equals expected."""
     assert (
         getattr(context.measurement, f"{kind.lower()}_time").duration
         == expected
@@ -63,7 +69,7 @@ def step_measurement_time_duration(
 
 @then("the measurement's metadata is an empty dict")
 def step_measurement_metadata_empty_dict(context: Context) -> None:
-    """Assert the measurement's metadata is a dict and empty."""
+    """Assert metadata is empty dict."""
     metadata = context.measurement.metadata
     assert isinstance(metadata, dict)
     assert not metadata

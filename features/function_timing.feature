@@ -8,13 +8,13 @@ Feature: Function timing
 
   Scenario: Timing a synchronous sleeping function records real time and minimal CPU time
     Given a sync function that sleeps for around 10,000,000 nanoseconds
-    When I call the decorated sync function
+    When I call the decorated function
     Then the measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
     And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
 
   Scenario: Timing an async sleeping function records real time and minimal CPU time
     Given an async function that sleeps for around 10,000,000 nanoseconds
-    When I call the decorated async function
+    When I call the decorated function
     Then the measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
     And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
 
@@ -22,12 +22,12 @@ Feature: Function timing
 
   Scenario: Fully consuming a sync generator records one measurement
     Given a sync generator that yields 3 items and sleeps 5,000,000 nanoseconds total
-    When I fully consume the decorated sync generator
+    When I fully consume the decorated generator
     Then the decorated function's measurements deque has 1 entry
 
   Scenario: Fully consuming an async generator records one measurement
     Given an async generator that yields 3 items and sleeps 5,000,000 nanoseconds total
-    When I fully consume the decorated async generator
+    When I fully consume the decorated generator
     Then the decorated function's measurements deque has 1 entry
 
   # --- Metadata ---
@@ -49,7 +49,7 @@ Feature: Function timing
 
   Scenario: With maxlen 2, only the last 2 measurements are kept
     Given a sync function that sleeps for around 1,000,000 nanoseconds
-    When I decorate it with FunctionTimer with maxlen 2
+    When I decorate it with Timer with maxlen 2
     And I call the decorated function 3 times
     Then the decorated function's measurements deque has 2 entries
 

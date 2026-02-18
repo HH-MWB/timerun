@@ -31,7 +31,7 @@ register_type(
 
 @given("a time span from {start:n} to {end:n}")
 def step_given_time_span(context: Context, start: int, end: int) -> None:
-    """Create a TimeSpan(start, end) and store as context.time_span."""
+    """Create TimeSpan, store on context."""
     context.time_span = timerun.TimeSpan(start=start, end=end)
 
 
@@ -41,7 +41,7 @@ def step_given_span_of_duration(
     name: str,
     duration: int,
 ) -> None:
-    """Create a TimeSpan(0, duration) and store as context.time_span_<name>."""
+    """Create TimeSpan(0, duration), store as named."""
     setattr(
         context,
         f"time_span_{name.lower()}",
@@ -54,7 +54,7 @@ def step_given_span_of_duration(
 
 @when("I try to create a time span from {start:n} to {end:n}")
 def step_try_create_time_span(context: Context, start: int, end: int) -> None:
-    """Create TimeSpan(start, end); store exception in context.exception."""
+    """Create TimeSpan; store exception."""
     try:
         timerun.TimeSpan(start=start, end=end)
     except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
@@ -66,7 +66,7 @@ def step_try_create_time_span(context: Context, start: int, end: int) -> None:
 
 @then("the duration is {expected:n} nanoseconds")
 def step_time_span_duration_is(context: Context, expected: int) -> None:
-    """Assert context.time_span.duration equals expected."""
+    """Assert time_span duration."""
     assert context.time_span.duration == expected
 
 
@@ -75,7 +75,7 @@ def step_timedelta_is_seconds_standard_type(
     context: Context,
     seconds: float,
 ) -> None:
-    """Assert time_span.timedelta is timedelta and equals given seconds."""
+    """Assert timedelta equals seconds."""
     result = context.time_span.timedelta
     assert isinstance(result, timedelta)
     assert result == timedelta(seconds=seconds)
@@ -83,7 +83,7 @@ def step_timedelta_is_seconds_standard_type(
 
 @then("time span A {relation:Relation} time span B")
 def step_time_span_a_relation_b(context: Context, relation: str) -> None:
-    """Assert time_span_a and time_span_b satisfy the given relation."""
+    """Assert two time spans satisfy relation."""
     assert RELATION_OPERATORS[relation](
         context.time_span_a,
         context.time_span_b,
@@ -96,5 +96,5 @@ def step_time_span_value_is(
     which: str,
     expected: int,
 ) -> None:
-    """Assert time_span.start or time_span.end equals expected."""
+    """Assert start or end equals expected."""
     assert getattr(context.time_span, which) == expected
