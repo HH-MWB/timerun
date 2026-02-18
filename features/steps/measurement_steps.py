@@ -16,8 +16,11 @@ def step_given_typed_time_span(
     end: int,
 ) -> None:
     """Set time span to context based on kind (wall/CPU)."""
-    span = timerun.TimeSpan(start=start, end=end)
-    setattr(context, f"{kind.lower()}_time_span", span)
+    setattr(
+        context,
+        f"{kind.lower()}_time_span",
+        timerun.TimeSpan(start=start, end=end),
+    )
 
 
 # --- When ---

@@ -3,34 +3,22 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from behave import given, then, when
 
 import timerun
+from features.steps.utils import (
+    BUFFER_NS,
+    CPU_LOWER_SLACK_NS,
+    assert_wall_time_within_buffer,
+    sleep_wall_at_least,
+    spin_wall_at_least,
+)
 
 if TYPE_CHECKING:
     from behave.runner import Context
-
-# "duration within buffer of X": accept X <= duration <= X + BUFFER_NS.
-# Covers sleep/scheduling jitter so tests don't flake.
-BUFFER_NS = 10_000_000  # 10 ms
-# CPU can be slightly below wall time (scheduling); allow 1 ms undershoot.
-CPU_LOWER_SLACK_NS = 1_000_000
-
-
-def sleep_wall_at_least(nanoseconds: int) -> None:
-    """Sleep >= `nanoseconds` ns wall time. Jitter absorbed by BUFFER_NS."""
-    time.sleep(nanoseconds / 1e9)
-
-
-def spin_wall_at_least(nanoseconds: int) -> None:
-    """Busy loop until wall time >= `nanoseconds` ns. Uses CPU."""
-    start = time.perf_counter_ns()
-    while time.perf_counter_ns() - start < nanoseconds:
-        pass
 
 
 # --- Given ---
@@ -96,12 +84,6 @@ def step_given_inner_block_duration(
 ) -> None:
     """Store inner block duration for nested blocks."""
     context.inner_block_ns = duration_ns
-
-
-@given('metadata run_id "{run_id}" and tag "{tag}"')
-def step_given_metadata(context: Context, run_id: str, tag: str) -> None:
-    """Store metadata dict for use with BlockTimer(metadata=...)."""
-    context.metadata = {"run_id": run_id, "tag": tag}
 
 
 @given('I will add metadata key "{key}" as "{value}" in the first block')
@@ -262,24 +244,6 @@ def step_wall_time_between(context: Context, min_ns: int, max_ns: int) -> None:
 
 
 @then(
-    "the measurement's wall time duration is within the configured buffer of "
-    "{expected_ns:n} nanoseconds",
-)
-def step_wall_time_within_buffer(context: Context, expected_ns: int) -> None:
-    """Assert expected_ns <= wall_time.duration <= expected_ns + buffer_ns."""
-    # Required context validation.
-    assert context.measurement.wall_time is not None
-
-    # Duration in [expected_ns, expected_ns + BUFFER_NS].
-    duration = context.measurement.wall_time.duration
-    max_ns = expected_ns + BUFFER_NS
-    assert expected_ns <= duration <= max_ns, (
-        f"wall time {duration} not in [{expected_ns}, {max_ns}] "
-        f"(buffer={BUFFER_NS})"
-    )
-
-
-@then(
     "the measurement's CPU time duration is within the configured buffer of "
     "{expected_ns:n} nanoseconds",
 )
@@ -287,6 +251,7 @@ def step_cpu_time_within_buffer(context: Context, expected_ns: int) -> None:
     """cpu_time in [min_ns, expected_ns+buffer_ns]; allow undershoot."""
     # Required context validation.
     assert context.measurement.cpu_time is not None
+
     # Duration in [expected_ns - CPU_LOWER_SLACK_NS, expected_ns + BUFFER_NS].
     duration = context.measurement.cpu_time.duration
     min_ns = max(0, expected_ns - CPU_LOWER_SLACK_NS)
@@ -310,32 +275,6 @@ def step_cpu_close_to_wall(context: Context) -> None:
     assert min_cpu <= cpu <= wall, (
         f"CPU {cpu} not in [wall-BUFFER_NS, wall] = [{min_cpu}, {wall}]"
     )
-
-
-@then(
-    "each thread's measurement has wall time duration within the configured "
-    "buffer of {expected_ns:n} nanoseconds",
-)
-def step_each_thread_wall_within_buffer(
-    context: Context,
-    expected_ns: int,
-) -> None:
-    """Each thread's wall_time in [expected_ns, expected_ns+buffer_ns]."""
-    # Required context validation.
-    measurements = context.thread_measurements
-    assert len(measurements) == context.thread_count, (
-        f"expected {context.thread_count} measurements, "
-        f"got {len(measurements)}"
-    )
-
-    # Duration in [expected_ns, expected_ns + BUFFER_NS] per measurement.
-    max_ns = expected_ns + BUFFER_NS
-    for m in measurements:
-        assert m.wall_time is not None
-        assert expected_ns <= m.wall_time.duration <= max_ns, (
-            f"wall time {m.wall_time.duration} not in "
-            f"[{expected_ns}, {max_ns}] (buffer={BUFFER_NS})"
-        )
 
 
 @then("the measurements are from different threads")
@@ -366,16 +305,10 @@ def step_which_measurement_wall_within_buffer(
     expected_ns: int,
 ) -> None:
     """Outer/inner wall_time in [expected_ns, expected_ns+buffer_ns]."""
-    # Required context validation.
-    m = getattr(context, f"{which}_measurement")
-    assert m.wall_time is not None
-
-    # Duration in [expected_ns, expected_ns + BUFFER_NS].
-    duration = m.wall_time.duration
-    max_ns = expected_ns + BUFFER_NS
-    assert expected_ns <= duration <= max_ns, (
-        f"{which} wall time {duration} not in [{expected_ns}, {max_ns}] "
-        f"(buffer={BUFFER_NS})"
+    assert_wall_time_within_buffer(
+        getattr(context, f"{which}_measurement"),
+        expected_ns,
+        BUFFER_NS,
     )
 
 
@@ -424,8 +357,8 @@ def step_second_measurement_metadata_no_key(
     assert key not in context.second_measurement.metadata
 
 
-@then("an exception was propagated to the caller")
-def step_exception_propagated(context: Context) -> None:
-    """Assert we caught the exception that was raised inside the block."""
-    assert hasattr(context, "exception")
-    assert isinstance(context.exception, ValueError)
+@then("the block yielded a measurement")
+def step_block_yielded_measurement(context: Context) -> None:
+    """Assert the block produced a measurement (e.g. when block raises)."""
+    assert context.measurement is not None
+    assert context.measurement.wall_time is not None

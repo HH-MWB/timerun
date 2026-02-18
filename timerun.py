@@ -1,26 +1,44 @@
 """TimeRun is a Python library for time measurements."""
 
-from __future__ import annotations
-
+from abc import ABC, abstractmethod
 from collections import deque
+from collections.abc import AsyncGenerator, Callable, Generator
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import timedelta
-from threading import local
+from functools import wraps
+from inspect import (
+    isasyncgenfunction,
+    iscoroutinefunction,
+    isgeneratorfunction,
+)
+from threading import Lock, local
 from time import perf_counter_ns, process_time_ns
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    from types import TracebackType
+from types import TracebackType
+from typing import (
+    Generic,
+    Literal,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    cast,
+)
 
 __version__: str = "0.5.0"
 
 __all__ = [
     "BlockTimer",
+    "FunctionTimer",
     "Measurement",
     "TimeSpan",
     "__version__",
 ]
+
+P = ParamSpec("P")  # callable parameters
+R = TypeVar("R")  # callable return type
+R_co = TypeVar("R_co", covariant=True)  # covariant return (Protocol)
+Y = TypeVar("Y")  # generator yield type
+T = TypeVar("T")  # context manager resource type
 
 
 @dataclass(order=True, frozen=True)
@@ -92,10 +110,40 @@ class Measurement:
 
     wall_time: TimeSpan | None = None
     cpu_time: TimeSpan | None = None
-    metadata: dict[object, object] = field(default_factory=dict)
+    metadata: dict[str, object] = field(default_factory=dict)
 
 
-class BlockTimer:
+class _SyncToAsyncContextManagerMixin(ABC, Generic[T]):
+    """Mixin: async context manager that delegates to sync __enter__/__exit__.
+
+    Use with any class that implements __enter__ and __exit__; adds support
+    for ``async with`` by calling the sync implementation.
+    """
+
+    @abstractmethod
+    def __enter__(self) -> T: ...
+
+    @abstractmethod
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool: ...
+
+    async def __aenter__(self) -> T:
+        return self.__enter__()
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        return self.__exit__(exc_type, exc_val, exc_tb)
+
+
+class BlockTimer(_SyncToAsyncContextManagerMixin[Measurement]):
     """Context manager for timing a block (wall time + CPU time).
 
     Use with ``with`` or ``async with``. Yields a :class:`Measurement` whose
@@ -139,12 +187,12 @@ class BlockTimer:
 
     """
 
-    def __init__(self, metadata: dict[object, object] | None = None) -> None:
+    def __init__(self, metadata: dict[str, object] | None = None) -> None:
         """Initialize the context manager."""
         self._metadata = metadata if isinstance(metadata, dict) else {}
         self._local = local()
 
-    def __enter__(self) -> Measurement:
+    def __enter__(self) -> Measurement:  # type: ignore[explicit-override]
         """Start timing; return the measurement record."""
         measurement = Measurement(metadata=deepcopy(self._metadata))
         if not hasattr(self._local, "stack"):
@@ -154,7 +202,7 @@ class BlockTimer:
         )
         return measurement
 
-    def __exit__(
+    def __exit__(  # type: ignore[explicit-override]
         self,
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
@@ -172,15 +220,172 @@ class BlockTimer:
         measurement.cpu_time = TimeSpan(start=cpu_start, end=cpu_end)
         return False
 
-    async def __aenter__(self) -> Measurement:
-        """Async entry: delegates to __enter__."""
-        return self.__enter__()
 
-    async def __aexit__(
+class _BlockRecorder(_SyncToAsyncContextManagerMixin[Measurement]):
+    """Records the measurement from a timed block (BlockTimer) into a deque.
+
+    Used by FunctionTimer. Runs BlockTimer, then on exit appends the
+    measurement to the deque under the lock and re-raises if the block raised.
+    Supports ``with`` and ``async with`` via the mixin.
+    """
+
+    def __init__(
+        self,
+        metadata: dict[str, object] | None,
+        measurements: deque[Measurement],
+        lock: Lock,
+    ) -> None:
+        self._timer = BlockTimer(metadata=metadata)
+        self._measurements = measurements
+        self._lock = lock
+
+    def __enter__(self) -> Measurement:  # type: ignore[explicit-override]
+        self._measurement = self._timer.__enter__()  # pylint: disable=attribute-defined-outside-init
+        return self._measurement
+
+    def __exit__(  # type: ignore[explicit-override]
         self,
         exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> Literal[False]:
-        """Async exit: delegates to __exit__."""
-        return self.__exit__(exc_type, exc_value, traceback)
+        self._timer.__exit__(exc_type, exc_val, exc_tb)
+        with self._lock:
+            self._measurements.append(self._measurement)
+        if exc_val is not None:
+            raise exc_val
+        return False
+
+
+class _TimedCallable(Protocol[P, R_co]):  # pylint: disable=too-few-public-methods
+    """Protocol for the wrapped callable with a measurements attribute."""
+
+    measurements: deque[Measurement]
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R_co: ...
+
+
+class FunctionTimer:  # pylint: disable=too-few-public-methods
+    """Decorator for timing a function (wall time + CPU time).
+
+    Use as ``@FunctionTimer()`` or
+    ``@FunctionTimer(metadata={...}, maxlen=100)``.
+    Supports sync functions, async functions, sync generators, and async
+    generators. Each run uses :class:`BlockTimer`; one :class:`Measurement` per
+    invocation (per call or per full generator consumption). Measurements are
+    appended to a deque on the wrapped callable (attribute ``measurements``).
+
+    Parameters
+    ----------
+    metadata : dict or None, optional
+        Passed to :class:`BlockTimer` for each run; interpretation and defaults
+        follow BlockTimer (e.g. None or non-dict become ``{}``). Read from the
+        decorator instance at each invocation, so reassigning it affects future
+        runs.
+    maxlen : int or None, optional
+        Maximum number of measurements to keep on the wrapped callable.
+        Passed to the storage deque as ``deque(maxlen=maxlen)``; ``None``
+        means unbounded. Oldest entries are dropped when full.
+
+    Attributes (on wrapped callable)
+    ---------------------------------
+    measurements : deque of Measurement
+        Deque of measurements (oldest to newest). Use ``func.measurements[-1]``
+        for the last run, or iterate for history. Append is done under a lock
+        for thread safety.
+
+    Notes
+    -----
+    Generators: one measurement per full consumption (from first ``next()`` /
+    ``anext()`` until exhausted or closed). Wall time and CPU time cover the
+    entire consumption (generator + consumer code between iterations).
+
+    Exceptions: if the callable raises, the measurement is still recorded
+    (wall_time and cpu_time set by BlockTimer), then the exception propagates.
+
+    Examples
+    --------
+    >>> @FunctionTimer(maxlen=10)
+    ... def slow():
+    ...     pass
+    >>> slow()
+    >>> slow.measurements[-1].wall_time.duration  # nanoseconds
+
+    """
+
+    def __init__(
+        self,
+        metadata: dict[str, object] | None = None,
+        maxlen: int | None = None,
+    ) -> None:
+        """Initialize the decorator."""
+        self._metadata = metadata
+        self._maxlen = maxlen
+
+    def __call__(  # noqa: C901
+        self,
+        f: Callable[P, R],
+    ) -> (
+        _TimedCallable[P, R]
+        | _TimedCallable[P, AsyncGenerator[Y, None]]
+        | _TimedCallable[P, Generator[Y, None, None]]
+    ):
+        """Wrap the function with timing."""
+        measurements: deque[Measurement] = deque(maxlen=self._maxlen)
+        lock = Lock()
+        if isasyncgenfunction(f):
+
+            @wraps(f)
+            async def wrapper(
+                *args: P.args,
+                **kwargs: P.kwargs,
+            ) -> AsyncGenerator[Y, None]:
+                inner = f(*args, **kwargs)
+                async with _BlockRecorder(
+                    self._metadata,
+                    measurements,
+                    lock,
+                ):
+                    async for x in inner:
+                        yield x
+
+        elif iscoroutinefunction(f):
+
+            @wraps(f)
+            async def wrapper(  # type: ignore[return]
+                *args: P.args,
+                **kwargs: P.kwargs,
+            ) -> R:
+                async with _BlockRecorder(
+                    self._metadata,
+                    measurements,
+                    lock,
+                ):
+                    return cast("R", await f(*args, **kwargs))
+
+        elif isgeneratorfunction(f):
+
+            @wraps(f)
+            def wrapper(
+                *args: P.args,
+                **kwargs: P.kwargs,
+            ) -> Generator[Y, None, None]:
+                inner = f(*args, **kwargs)
+                with _BlockRecorder(self._metadata, measurements, lock):
+                    yield from inner
+
+        else:
+
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                with _BlockRecorder(self._metadata, measurements, lock):
+                    return f(*args, **kwargs)
+
+        wrapped = cast(
+            "_TimedCallable[P, R] | "
+            "_TimedCallable[P, AsyncGenerator[Y, None]] | "
+            "_TimedCallable[P, Generator[Y, None, None]]",
+            wrapper,
+        )
+        wrapped.measurements = measurements
+        return wrapped

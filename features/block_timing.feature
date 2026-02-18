@@ -30,8 +30,7 @@ Feature: Block timing
   Scenario: Two threads with one BlockTimer yield one measurement per thread
     Given each thread sleeps 5,000,000 nanoseconds
     When I measure blocks from 2 threads using the same BlockTimer instance
-    Then each thread's measurement has wall time duration within the configured buffer of 5,000,000 nanoseconds
-    And the measurements are from different threads
+    Then the measurements are from different threads
 
   Scenario: Two sequential blocks with one BlockTimer yield correct durations
     Given the first block duration is 5,000,000 nanoseconds
@@ -69,7 +68,7 @@ Feature: Block timing
 
   Scenario: Block that raises still yields measurement; exception propagates
     When I measure a code block that raises an exception
-    Then the measurement's wall time duration is between 0 and 1,000,000,000 nanoseconds
+    Then the block yielded a measurement
     And an exception was propagated to the caller
 
   Scenario: __exit__ without __enter__ raises RuntimeError

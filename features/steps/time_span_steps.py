@@ -42,8 +42,11 @@ def step_given_span_of_duration(
     duration: int,
 ) -> None:
     """Create a TimeSpan(0, duration) and store as context.time_span_<name>."""
-    span = timerun.TimeSpan(start=0, end=duration)
-    setattr(context, f"time_span_{name.lower()}", span)
+    setattr(
+        context,
+        f"time_span_{name.lower()}",
+        timerun.TimeSpan(start=0, end=duration),
+    )
 
 
 # --- When ---
@@ -81,8 +84,10 @@ def step_timedelta_is_seconds_standard_type(
 @then("time span A {relation:Relation} time span B")
 def step_time_span_a_relation_b(context: Context, relation: str) -> None:
     """Assert time_span_a and time_span_b satisfy the given relation."""
-    op = RELATION_OPERATORS[relation]
-    assert op(context.time_span_a, context.time_span_b)
+    assert RELATION_OPERATORS[relation](
+        context.time_span_a,
+        context.time_span_b,
+    )
 
 
 @then("the {which:w} value is {expected:n}")
