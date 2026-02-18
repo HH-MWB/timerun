@@ -154,16 +154,16 @@ class Timer:
     Context manager::
 
         with Timer() as m:
-            do_work()
-        print(m.wall_time.duration)
+            pass  # code block to be measured
+        print(m.wall_time.timedelta)
 
     Decorator::
 
-        @Timer(maxlen=10)
-        def slow():
-            pass
-        slow()
-        print(slow.measurements[-1].wall_time.duration)
+        @Timer()
+        def func():
+            return
+        func()
+        print(func.measurements[-1].wall_time.timedelta)
 
     """
 

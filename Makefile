@@ -39,6 +39,6 @@ test-verbose: ## Run BDD tests with full scenario/step output (for debugging fai
 .PHONY: clean
 clean: ## Delete all temporary files including venv
 	@rm -rf "$(VENV_DIR)" *.egg-info
-	@rm -rf .mypy_cache .coverage htmlcov
+	@rm -rf .mypy_cache .ruff_cache .coverage htmlcov
 	@find . -name "*.pyc" -delete
 	@find . -name "__pycache__" -type d -exec rm -rf {} +

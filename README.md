@@ -16,6 +16,7 @@
 
 TimeRun is a **single-file** Python package with no dependencies beyond the [Python Standard Library](https://docs.python.org/3/library/). The package is designed to stay minimal and dependency-free.
 
+It records **wall-clock time** (real elapsed time) and **CPU time** (process time) for code blocks or function calls, and lets you attach optional **metadata** (e.g. run id, tags) to each measurement.
 
 ## Setup
 
@@ -39,7 +40,41 @@ pip install git+https://github.com/HH-MWB/timerun.git
 
 ## Quickstart
 
-TBD
+### Time Code Block
+
+Use `with Timer() as m:` or `async with Timer() as m:`. On block exit, the yielded `Measurement` has `wall_time` and `cpu_time` set.
+
+```python
+>>> from timerun import Timer
+>>> with Timer() as m:
+...     pass  # code block to be measured
+...
+>>> m.wall_time.timedelta
+datetime.timedelta(microseconds=11)
+>>> m.cpu_time.timedelta
+datetime.timedelta(microseconds=8)
+```
+
+*Note: On block exit the timer records CPU time first, then wall time, so wall time is slightly larger than CPU time even when there is no I/O or scheduling.*
+
+### Time Function Calls
+
+Use `@Timer()` to time every call. Works with sync and async functions and with sync and async generators. One `Measurement` per call is appended to the wrapped callable's `measurements` deque.
+
+```python
+>>> from timerun import Timer
+>>> @Timer()
+... def func():  # function to be measured
+...     return
+...
+>>> func()
+>>> func.measurements[-1].wall_time.timedelta
+datetime.timedelta(microseconds=11)
+>>> func.measurements[-1].cpu_time.timedelta
+datetime.timedelta(microseconds=8)
+```
+
+*Note: Argument `maxlen` caps how many measurements are kept (e.g. `@Timer(maxlen=10)`). By default the deque is unbounded.*
 
 ## Contributing
 
