@@ -1,119 +1,201 @@
 # Contributing to TimeRun
 
-Thank you for your interest in contributing to TimeRun! This document provides guidelines for contributing to the project.
+Thank you for considering contributing to TimeRun. This guide explains how to set up your environment, run tests, and submit changes.
 
-## Getting Started
+## Table of Contents
+
+- [Code of Conduct](#code-of-conduct)
+- [How You Can Help](#how-you-can-help)
+- [Development Setup](#development-setup)
+- [Testing](#testing)
+- [Code Style and Quality](#code-style-and-quality)
+- [Project Structure](#project-structure)
+- [Pull Request Process](#pull-request-process)
+- [Reporting Bugs](#reporting-bugs)
+- [License](#license)
+
+## Code of Conduct
+
+Please be respectful and constructive. By participating, you agree to uphold a welcoming environment for everyone.
+
+## How You Can Help
+
+- **Report bugs** — Open an issue with clear steps to reproduce.
+- **Suggest features** — Open an issue describing the use case and desired behavior.
+- **Submit code** — Fix bugs or add features via pull requests (see [Pull Request Process](#pull-request-process)).
+- **Improve docs** — Fix typos, clarify README or docstrings, or add examples.
+
+## Development Setup
 
 ### Prerequisites
 
-- Python 3.9 or higher
-- Git
+- **Python 3.10+**
+- **Git**
 
-### Development Setup
+### One-time setup
 
-1. Fork the repository on GitHub
-2. Clone your fork locally:
+1. **Fork** the repository on GitHub, then clone your fork:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/timerun.git
    cd timerun
    ```
 
-3. Set up the development environment:
+2. **Create and activate a virtual environment** (recommended):
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate   # Windows: .venv\Scripts\activate
+   ```
+
+3. **Install the project in editable mode with dev dependencies**:
+
+   ```bash
+   pip install -e ".[dev]"
+   ```
+
+4. **Install and enable pre-commit hooks** (optional but recommended):
+
+   ```bash
+   pip install pre-commit
+   pre-commit install
+   ```
+
+   Or use the convenience target:
+
    ```bash
    make init
    ```
 
-4. Activate the virtual environment:
-   ```bash
-   source .venv/bin/activate
-   ```
+   Then activate the venv: `source .venv/bin/activate`.
 
-## Development Workflow
+### Verify setup
 
-### Running Tests
+Run the test suite:
 
-Run the test suite with coverage:
 ```bash
 make test
 ```
 
-### Code Style
+You should see the BDD scenarios run and a coverage report.
 
-This project follows these code style guidelines:
-- **Black** for code formatting (line length: 79 characters)
-- **isort** for import sorting
+## Testing
 
-Pre-commit hooks are installed automatically with `make init` and will run on every commit. You can also run them manually:
+TimeRun uses **behavior-driven development (BDD)** with [behave](https://behave.readthedocs.io/). All tests are written in Gherkin and live under `features/`.
+
+### Run tests
+
+| Command            | Description                                                    |
+|--------------------|----------------------------------------------------------------|
+| `make test`        | Run BDD suite with progress + summary + coverage (default)     |
+| `make test-summary`| Summary and coverage only (minimal output)                     |
+| `make test-verbose`| Full scenario/step output (use when debugging failures)        |
+| `behave`           | Run BDD suite only (no coverage)                               |
+
+### Run coverage manually
+
+```bash
+coverage run --source=timerun -m behave        # full output
+coverage run --source=timerun -m behave -f progress   # progress + summary
+coverage run --source=timerun -m behave -f null       # summary only
+coverage report --show-missing
+```
+
+### Adding or changing tests
+
+- **Feature files** — Add or edit `.feature` files in `features/` (e.g. `features/version.feature`). Use standard Gherkin: `Feature`, `Scenario`, `Given`, `When`, `Then`.
+- **Step definitions** — Implement steps in Python under `features/steps/`, typically in a `*_steps.py` file. Use `@given`, `@when`, `@then` from `behave`; step functions receive a `context` argument.
+- Keep scenarios focused and steps reusable. Add or extend scenarios for new behavior rather than skipping BDD.
+
+## Code Style and Quality
+
+Style and linting are enforced via **pre-commit** (Ruff, mypy, Pylint, and other hooks). After `pre-commit install`, these run automatically on each commit.
+
+### Run checks manually
+
 ```bash
 pre-commit run --all-files
 ```
 
-### Making Changes
+### What we expect
 
-1. Create a new branch for your feature or bugfix:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+- **Formatting** — Ruff format (run via pre-commit or `ruff format`).
+- **Linting** — Ruff check, Pylint, and other hooks must pass.
+- **Types** — Use type hints for public APIs; mypy must pass.
+- **Docstrings** — Public functions, classes, and modules should have docstrings.
+- **Security** — Bandit and Semgrep run in pre-commit; address any reported issues.
 
-2. Make your changes following the project conventions
-3. Add or update tests as needed
-4. Ensure all tests pass: `make test`
-5. Commit your changes with a clear message
-
-### Submitting Changes
-
-1. Push your branch to your fork:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-2. Create a pull request on GitHub with:
-   - Clear description of the changes
-   - Reference to any related issues
-   - Test coverage for new functionality
+Fixing pre-commit failures before pushing keeps the history clean and CI green.
 
 ## Project Structure
 
-- `timerun.py` - Main library code (single file module)
-- `tests/` - Test suite
-- `pyproject.toml` - Project configuration and dependencies
-- `Makefile` - Development commands
+```
+timerun/
+├── timerun.py          # Library (single-file by design)
+├── features/            # BDD feature files (Gherkin) — behave convention
+│   ├── __init__.py      # Makes features a package for imports
+│   ├── *.feature
+│   ├── environment.py  # Optional: hooks (before/after scenario, etc.)
+│   └── steps/           # Step definitions (flat; all .py files loaded)
+│       ├── __init__.py
+│       ├── utils.py         # Shared constants and helpers (no step decorators)
+│       ├── common_steps.py  # Shared steps used by multiple features
+│       └── *_steps.py       # Feature-specific step files
+├── pyproject.toml       # Project metadata and config
+├── Makefile             # Commands: init, test, clean, help
+├── README.md
+├── CONTRIBUTING.md
+└── LICENSE
+```
 
-## Guidelines
+- **`timerun.py`** — The only library module; keep it a single file by design.
+- **`features/`** — All executable specs; no separate unit test directory. Layout follows [behave](https://behave.readthedocs.io/) convention: step definitions live under `features/steps/` (flat; subdirectories are not searched). Shared logic lives in `features/steps/utils.py`; shared steps (e.g. metadata, wall-time buffer, exception propagation) in `common_steps.py`. Run behave from the project root so `from features.steps.utils import ...` works.
 
-### Code Quality
+## Pull Request Process
 
-- Maintain 100% test coverage for new code
-- Follow existing code patterns and conventions
-- Add docstrings for all public functions and classes
-- Use type hints consistently
+1. **Create a branch** from `main`:
 
-### Testing
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feature/short-description   # or fix/short-description
+   ```
 
-- Write tests for all new functionality
-- Use descriptive test names
-- Test both success and error cases
-- Keep tests focused and independent
+2. **Make your changes** — Follow [Code Style and Quality](#code-style-and-quality) and add or update BDD scenarios in `features/` for new or changed behavior.
 
-### Documentation
+3. **Run the suite and pre-commit**:
 
-- Update docstrings for any API changes
-- Add examples for new features
-- Update README.md if needed
+   ```bash
+   make test
+   pre-commit run --all-files
+   ```
 
-## Reporting Issues
+4. **Commit** with clear, concise messages. Optionally use conventional style (e.g. `feat: add X`, `fix: correct Y`).
 
-When reporting bugs or requesting features:
+5. **Push** to your fork and open a pull request against `main`:
 
-1. Check existing issues first
-2. Use the issue templates if available
-3. Provide clear reproduction steps for bugs
-4. Include Python version and environment details
+   ```bash
+   git push origin feature/short-description
+   ```
 
-## Questions?
+6. **Fill out the PR**:
+   - Describe what changed and why.
+   - Reference any related issues (e.g. "Fixes #123").
+   - Confirm tests pass and, for new behavior, that BDD scenarios were added or updated.
 
-Feel free to open an issue for questions about contributing or reach out to the maintainers.
+Maintainers will review and may request changes. Once approved, your PR will be merged.
+
+## Reporting Bugs
+
+- **Search** existing issues to avoid duplicates.
+- **Open an issue** with:
+  - A short, clear title.
+  - Steps to reproduce (code or commands).
+  - Expected vs actual behavior.
+  - Your environment: OS, Python version (`python --version`), and how you installed TimeRun (pip, editable, etc.).
+
+For small, obvious fixes you may open a PR directly with a short explanation.
 
 ## License
 
-By contributing to TimeRun, you agree that your contributions will be licensed under the MIT License.
+Contributions are made under the [MIT License](LICENSE). By submitting a pull request, you agree that your contributions will be licensed under the same terms.

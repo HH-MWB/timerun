@@ -1,450 +1,295 @@
-"""TimeRun is a Python library for elapsed time measurement."""
-
-from __future__ import annotations
+"""TimeRun is a Python library for time measurements."""
 
 from collections import deque
-from contextlib import ContextDecorator
-from dataclasses import dataclass
+from collections.abc import AsyncGenerator, Callable, Generator
+from copy import deepcopy
+from dataclasses import dataclass, field
 from datetime import timedelta
-from inspect import isasyncgenfunction, iscoroutinefunction
+from functools import wraps
+from inspect import (
+    isasyncgenfunction,
+    iscoroutinefunction,
+    isgeneratorfunction,
+)
+from threading import Lock, local
 from time import perf_counter_ns, process_time_ns
-from typing import TYPE_CHECKING, Protocol, TypeVar, cast
-
-if TYPE_CHECKING:
-    from collections.abc import (
-        AsyncGenerator,
-        Awaitable,
-        Callable,
-        Iterator,
-    )
-
-__all__: tuple[str, ...] = (  # noqa: RUF022
-    # -- Core --
-    "ElapsedTime",
-    "Stopwatch",
-    "Timer",
-    # -- Exceptions --
-    "NoDurationCapturedError",
-    "TimeRunError",
+from types import TracebackType
+from typing import (
+    Literal,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    cast,
 )
 
-__version__: str = "0.4.0"
+__version__: str = "0.5.0"
+
+__all__ = [
+    "Measurement",
+    "TimeSpan",
+    "Timer",
+    "__version__",
+]
+
+P = ParamSpec("P")
+R = TypeVar("R")
+R_co = TypeVar("R_co", covariant=True)
+Y = TypeVar("Y")
 
 
-# =========================================================================== #
-#                                Type Protocols                               #
-# --------------------------------------------------------------------------- #
-#                                                                             #
-# The Timer class needs to store captured durations in a flexible way that    #
-# allows users to provide their own storage implementations.                  #
-#                                                                             #
-# Instead of restricting to specific types like List or Deque, timerun uses a #
-# protocol to define the required interface for duration storage.             #
-#                                                                             #
-# This allows users to provide custom storage backends (database, file,       #
-# memory-mapped, etc.) as long as they implement the basic sequence methods.  #
-#                                                                             #
-# =========================================================================== #
+@dataclass(order=True, frozen=True)
+class TimeSpan:
+    """A time interval with start and end timestamps.
 
-T = TypeVar("T")
-
-
-class AppendableSequence(Protocol[T]):
-    """Protocol for sequences that support appending and indexing."""
-
-    def append(self, _item: T) -> None:
-        """Add an item to the sequence."""
-
-    def __getitem__(self, _index: int) -> T:
-        """Get item by index (supports negative indexing)."""
-
-    def __len__(self) -> int:
-        """Return number of items in the sequence."""
-
-    def __iter__(self) -> Iterator[T]:
-        """Iterate over items in the sequence."""
-
-
-# =========================================================================== #
-#                                 Exceptions                                  #
-# --------------------------------------------------------------------------- #
-#                                                                             #
-# Invalid behaviors when using the classes and functions in timerun should be #
-# converted to an exception and raised.                                       #
-#                                                                             #
-# To make exceptions easier to manage, all exceptions created for the timerun #
-# library will extend from a base exception ``TimeRunException``.             #
-#                                                                             #
-# =========================================================================== #
-
-
-class TimeRunError(Exception):
-    """Base exception for TimeRun."""
-
-
-class NoDurationCapturedError(TimeRunError, AttributeError):
-    """No Duration Captured Exception."""
-
-    def __init__(self) -> None:
-        """Initialize the exception."""
-        super().__init__(
-            "No duration available. This is likely because the Timer has not "
-            "been used to measure any code blocks or functions yet.",
-        )
-
-
-# =========================================================================== #
-#                                Elapsed Time                                 #
-# --------------------------------------------------------------------------- #
-#                                                                             #
-# In Python, class datetime.timedelta is a duration expressing the difference #
-# between two date, time, or datetime instances to microsecond resolution.    #
-#                                                                             #
-# However, the highest available resolution measurer provided by Python can   #
-# measure short durations in nanoseconds.                                     #
-#                                                                             #
-# Thus, there is a need to have a class that can represent elapsed time at a  #
-# higher resolution (nanoseconds) for the best accuracy.                      #
-#                                                                             #
-# =========================================================================== #
-
-
-@dataclass(init=True, repr=False, eq=True, order=True, frozen=True)
-class ElapsedTime:
-    """An immutable object representing elapsed time in nanoseconds.
+    Instances are immutable. Equality and ordering are based only on
+    ``duration``; ``start`` and ``end`` are excluded from comparison.
 
     Attributes
     ----------
-    nanoseconds : int
-        The elapsed time expressed in nanoseconds.
+    duration : int
+        Elapsed time in nanoseconds (end - start). Set in ``__post_init__``,
+        not a constructor argument. Used for equality, ordering, and hashing.
+    start : int
+        Start timestamp in nanoseconds.
+    end : int
+        End timestamp in nanoseconds.
     timedelta : timedelta
-        The duration as a timedelta type. This attribute may not
-        maintain the original accuracy.
+        Read-only. Duration as a ``datetime.timedelta``; nanoseconds are
+        converted to whole microseconds (``duration // 1000``) to match
+        timedelta's resolution.
 
-    Parameters
-    ----------
-    nanoseconds : int
-        The elapsed time expressed in nanoseconds.
-
-    Examples
-    --------
-    >>> t = ElapsedTime(10)
-    >>> t
-    ElapsedTime(nanoseconds=10)
-    >>> print(t)
-    0:00:00.000000010
+    Notes
+    -----
+    ``start`` and ``end`` use ``field(compare=False)``, so two spans with
+    the same duration compare equal even if their intervals differ.
 
     """
 
-    __slots__ = ["nanoseconds"]
+    duration: int = field(init=False)
+    start: int = field(compare=False)
+    end: int = field(compare=False)
 
-    nanoseconds: int
-
-    def __str__(self) -> str:  # type: ignore[explicit-override]
-        """Return the string representation of the elapsed time."""
-        integer_part = timedelta(seconds=self.nanoseconds // int(1e9))
-
-        if not (decimal_part := self.nanoseconds % int(1e9)):
-            return str(integer_part)
-        return f"{integer_part}.{decimal_part:09}"
-
-    def __repr__(self) -> str:  # type: ignore[explicit-override]
-        """Return the representation of the elapsed time."""
-        return f"ElapsedTime(nanoseconds={self.nanoseconds})"
+    def __post_init__(self) -> None:
+        """Set duration to end minus start (nanoseconds)."""
+        if self.end < self.start:
+            msg = "end must be >= start"
+            raise ValueError(msg)
+        object.__setattr__(self, "duration", self.end - self.start)
 
     @property
     def timedelta(self) -> timedelta:
-        """The duration converted from nanoseconds to a timedelta type."""
-        return timedelta(microseconds=self.nanoseconds // int(1e3))
+        """Duration as a datetime.timedelta."""
+        return timedelta(microseconds=self.duration // 1000)
 
 
-# =========================================================================== #
-#                                  Stopwatch                                  #
-# --------------------------------------------------------------------------- #
-#                                                                             #
-# Based on PEP 418, Python provides performance counter and process time      #
-# functions to measure a short duration of time elapsed.                      #
-#                                                                             #
-# Based on PEP 564, Python got new time functions with nanosecond resolution. #
-#                                                                             #
-# Ref:                                                                        #
-#   *  https://www.python.org/dev/peps/pep-0418/                              #
-#   *  https://www.python.org/dev/peps/pep-0564/                              #
-#                                                                             #
-# =========================================================================== #
+@dataclass
+class Measurement:
+    """A measurement collection: wall time, CPU time, and optional metadata.
 
+    Stores one measurement only. Use this to collect the result of a single
+    timing run: wall-clock time, CPU time, and any user-defined metadata.
 
-class Stopwatch:
-    """A stopwatch with the highest available resolution (in nanoseconds).
-
-    It measures elapsed time. It can be set to include or exclude the
-    sleeping time.
-
-    Parameters
-    ----------
-    count_sleep : bool, optional
-        An optional boolean variable expressing whether the time elapsed
-        during sleep should be counted or not. Defaults to True if None.
-
-    Methods
-    -------
-    reset
-        Restart the stopwatch by setting the starting time to the
-        current time.
-    split
-        Get the elapsed time between now and the starting time.
-
-    Examples
-    --------
-    >>> stopwatch = Stopwatch()
-    >>> stopwatch.reset()
-    >>> stopwatch.split()
-    ElapsedTime(nanoseconds=100)
-
-    """
-
-    __slots__ = ["_clock", "_start"]
-
-    def __init__(self, *, count_sleep: bool | None = None) -> None:
-        """Initialize the stopwatch."""
-        if count_sleep is None:
-            count_sleep = True
-
-        self._clock: Callable[[], int] = (
-            perf_counter_ns if count_sleep else process_time_ns
-        )
-
-        self._start: int = self._clock()
-
-    def reset(self) -> None:
-        """Reset the starting time to the current time."""
-        self._start = self._clock()
-
-    def split(self) -> ElapsedTime:
-        """Get the elapsed time between now and the starting time.
-
-        Returns
-        -------
-        ElapsedTime
-            The elapsed time captured by the stopwatch.
-
-        """
-        return ElapsedTime(self._clock() - self._start)
-
-
-# =========================================================================== #
-#                                    Timer                                    #
-# --------------------------------------------------------------------------- #
-#                                                                             #
-# For most use cases, the user would just want to measure the elapsed time    #
-# for a run of a code block or function.                                      #
-#                                                                             #
-# It would be cleaner and more elegant if the user can measure a function by  #
-# using a decorator and measure a code block by using a context manager.      #
-#                                                                             #
-# =========================================================================== #
-
-
-class Timer(ContextDecorator):
-    """A context decorator that can capture and save the measured elapsed time.
+    When created by Timer (context manager or decorator), ``wall_time`` and
+    ``cpu_time`` are ``None`` until the block exits, then they are set to the
+    measured spans.
 
     Attributes
     ----------
-    durations : Tuple[ElapsedTime, ...]
-        The captured duration times as a tuple.
-    duration : ElapsedTime
-        The last captured duration time.
-
-    Parameters
-    ----------
-    count_sleep : bool, optional
-        An optional boolean variable expressing whether the time elapsed
-        during sleep should be counted or not. Defaults to True if None.
-    storage : AppendableSequence[ElapsedTime], optional
-        A sequence-like object used to save captured results.
-        If provided, this storage will be used directly and max_len will
-        be ignored. If not provided, a new deque will be created.
-    max_len : int, optional
-        The maximum length for the capturing storage. Defaults to None,
-        which will create storage with infinite length.
-
-    Examples
-    --------
-    >>> import time
-    >>> with Timer() as timer:
-    ...     time.sleep(0.1)  # your code here
-    >>> print(timer.duration)
-
-    >>> import time
-    >>> timer = Timer()
-    >>> @timer
-    ... def func():
-    ...     time.sleep(0.1)  # your code here
-    >>> func()
-    >>> print(timer.duration)
-
-    >>> import asyncio
-    >>> timer = Timer()
-    >>> @timer
-    ... async def async_func():
-    ...     await asyncio.sleep(0.1)  # your code here
-    >>> asyncio.run(async_func())
-    >>> print(timer.duration)
-
-    >>> async def async_code():
-    ...     async with Timer() as timer:
-    ...         await asyncio.sleep(0.1)  # your code here
-    ...     print(timer.duration)
-    >>> asyncio.run(async_code())
+    wall_time : TimeSpan or None
+        Wall-clock time for the measurement, or ``None`` if not yet set.
+    cpu_time : TimeSpan or None
+        CPU time for the measurement, or ``None`` if not yet set.
+    metadata : dict
+        Optional key-value metadata (e.g., tags, run id). Defaults to ``{}``;
+        mutate in place to add or change entries.
 
     """
 
-    __slots__ = ["_durations", "_stopwatch"]
+    wall_time: TimeSpan | None = None
+    cpu_time: TimeSpan | None = None
+    metadata: dict[str, object] = field(default_factory=dict)
+
+
+class _TimedCallable(Protocol[P, R_co]):  # pylint: disable=too-few-public-methods
+    measurements: deque[Measurement]
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R_co: ...
+
+
+class Timer:
+    """Times execution and records wall-clock and CPU time per run.
+
+    Use as a context manager (``with Timer() as m:`` or ``async with
+    Timer() as m:``) to time a block: on exit, the yielded
+    :class:`Measurement` has its ``wall_time`` and ``cpu_time`` set.
+
+    Use as a decorator (``@Timer()`` or ``@Timer(metadata={...},
+    maxlen=100)``) to time each call: supports sync and async functions and
+    generators; one :class:`Measurement` per run is appended to the wrapped
+    callable's ``measurements`` deque.
+
+    Parameters
+    ----------
+    metadata : dict or None, optional
+        Key-value metadata for the measurement(s). Stored by reference; each
+        measurement gets a deep copy at enter time. Defaults to ``{}``.
+    maxlen : int or None, optional
+        Only used in decorator mode. Maximum number of measurements to keep on
+        the wrapped callable. Ignored when used as a context manager. Defaults
+        to ``None`` (unbounded).
+
+    Yields (context manager)
+    -----------------------
+    Measurement
+        The measurement record. ``wall_time`` and ``cpu_time`` are set on block
+        exit.
+
+    Attributes (decorator mode, on wrapped callable)
+    -----------------------------------------------
+    measurements : deque of Measurement
+        Deque of measurements (oldest to newest).
+
+    Examples
+    --------
+    Context manager::
+
+        with Timer() as m:
+            pass  # code block to be measured
+        print(m.wall_time.timedelta)
+
+    Decorator::
+
+        @Timer()
+        def func():
+            return
+        func()
+        print(func.measurements[-1].wall_time.timedelta)
+
+    """
 
     def __init__(
         self,
-        *,
-        count_sleep: bool | None = None,
-        storage: AppendableSequence[ElapsedTime] | None = None,
-        max_len: int | None = None,
+        metadata: dict[str, object] | None = None,
+        maxlen: int | None = None,
     ) -> None:
-        """Initialize the timer."""
-        self._stopwatch: Stopwatch = Stopwatch(count_sleep=count_sleep)
-        self._durations: AppendableSequence[ElapsedTime] = (
-            storage if storage is not None else deque(maxlen=max_len)
+        """Initialize with optional metadata and maxlen (decorator mode)."""
+        self._metadata = metadata if isinstance(metadata, dict) else {}
+        self._maxlen = maxlen
+        self._local = local()
+
+    def __enter__(self) -> Measurement:
+        """Start timing; return the measurement record."""
+        measurement = Measurement(metadata=deepcopy(self._metadata))
+        self._local.stack = getattr(self._local, "stack", deque())
+        self._local.stack.append(
+            (measurement, perf_counter_ns(), process_time_ns()),
         )
+        return measurement
 
-    def __enter__(self) -> Timer:  # noqa: PYI034
-        """Start the timer."""
-        self._stopwatch.reset()
-        return self
-
-    def __exit__(self, *_: object) -> None:
-        """Stop the timer and save the duration."""
-        duration: ElapsedTime = self._stopwatch.split()
-        self._durations.append(duration)
-
-    async def __aenter__(self) -> Timer:  # noqa: PYI034
-        """Start the timer (async context manager)."""
-        self._stopwatch.reset()
-        return self
-
-    async def __aexit__(self, *_: object) -> None:
-        """Stop the timer and save the duration (async context manager)."""
-        duration: ElapsedTime = self._stopwatch.split()
-        self._durations.append(duration)
-
-    def _wrap_async_function(  # type: ignore[explicit-any]
+    def __exit__(
         self,
-        func: Callable[..., Awaitable[object]],
-    ) -> Callable[..., Awaitable[object]]:
-        """Wrap an async function to measure its execution time."""
-
-        async def async_wrapper(*args: object, **kwargs: object) -> object:
-            """Wrap async function execution with timing.
-
-            Parameters
-            ----------
-            *args : object
-                Positional arguments passed to the wrapped function.
-            **kwargs : object
-                Keyword arguments passed to the wrapped function.
-
-            Returns
-            -------
-            object
-                The result of the wrapped async function.
-
-            """
-            async with self:
-                return await func(*args, **kwargs)
-
-        return async_wrapper
-
-    def _wrap_async_generator(  # type: ignore[explicit-any]
-        self,
-        func: Callable[..., object],
-    ) -> Callable[..., AsyncGenerator[object]]:
-        """Wrap an async generator function to measure its execution time."""
-
-        async def async_gen_wrapper(
-            *args: object,
-            **kwargs: object,
-        ) -> AsyncGenerator[object]:
-            """Wrap async generator function execution with timing.
-
-            Parameters
-            ----------
-            *args : object
-                Positional arguments passed to the wrapped function.
-            **kwargs : object
-                Keyword arguments passed to the wrapped function.
-
-            Yields
-            ------
-            object
-                Items yielded from the wrapped async generator function.
-
-            """
-            async with self:
-                async for item in cast(
-                    "AsyncGenerator[object]",
-                    func(*args, **kwargs),
-                ):
-                    yield item
-
-        return async_gen_wrapper
-
-    def __call__(  # type: ignore[override,explicit-override,explicit-any]
-        self,
-        func: Callable[..., object] | Callable[..., Awaitable[object]],
-    ) -> Callable[..., object] | Callable[..., Awaitable[object]]:
-        """Wrap a function (sync or async) to measure its execution time.
-
-        Parameters
-        ----------
-        func : Callable
-            The function to be decorated (can be sync or async).
-
-        Returns
-        -------
-        Callable
-            A wrapped function that measures execution time.
-
-        """
-        if iscoroutinefunction(func):
-            return self._wrap_async_function(func)
-        if isasyncgenfunction(func):
-            return self._wrap_async_generator(func)
-        return super().__call__(func)
-
-    @property
-    def durations(self) -> tuple[ElapsedTime, ...]:
-        """The captured duration times as a tuple.
-
-        A tuple containing all captured duration times, that can be
-        unpacked into multiple variables.
-
-        Examples
-        --------
-        >>> first_duration, second_duration = timer.durations
-
-        """
-        return tuple(self._durations)
-
-    @property
-    def duration(self) -> ElapsedTime:
-        """The last captured duration time.
-
-        Raises
-        ------
-        NoDurationCapturedError
-            Error that occurs when accessing an empty durations list,
-            which is usually because the measurer has not been triggered
-            yet.
-
-        """
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> Literal[False]:
+        """Stop timing; set wall_time and cpu_time on the measurement."""
+        cpu_end = process_time_ns()
+        wall_end = perf_counter_ns()
         try:
-            return self._durations[-1]
-        except IndexError as error:
-            raise NoDurationCapturedError from error
+            measurement, wall_start, cpu_start = self._local.stack.pop()
+        except (AttributeError, IndexError) as e:
+            msg = "__exit__ called without a matching __enter__"
+            raise RuntimeError(msg) from e
+        measurement.wall_time = TimeSpan(start=wall_start, end=wall_end)
+        measurement.cpu_time = TimeSpan(start=cpu_start, end=cpu_end)
+        return False
+
+    async def __aenter__(self) -> Measurement:
+        """Support ``async with`` by delegating to sync __enter__."""
+        return self.__enter__()
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
+        """Support ``async with`` by delegating to sync __exit__."""
+        return self.__exit__(exc_type, exc_val, exc_tb)
+
+    def __call__(  # noqa: C901
+        self,
+        f: Callable[P, R],
+    ) -> (
+        _TimedCallable[P, R]
+        | _TimedCallable[P, AsyncGenerator[Y, None]]
+        | _TimedCallable[P, Generator[Y, None, None]]
+    ):
+        """When given a callable, wrap it with timing (decorator usage)."""
+        measurements: deque[Measurement] = deque(maxlen=self._maxlen)
+        lock = Lock()
+
+        def append_measurement(m: Measurement) -> None:
+            with lock:
+                measurements.append(m)
+
+        if isasyncgenfunction(f):
+
+            @wraps(f)
+            async def wrapper(
+                *args: P.args,
+                **kwargs: P.kwargs,
+            ) -> AsyncGenerator[Y, None]:
+                inner = f(*args, **kwargs)
+                try:
+                    async with self as m:
+                        async for x in inner:
+                            yield x
+                finally:
+                    append_measurement(m)  # pylint: disable=used-before-assignment
+
+        elif iscoroutinefunction(f):
+
+            @wraps(f)
+            async def wrapper(  # type: ignore[return]
+                *args: P.args,
+                **kwargs: P.kwargs,
+            ) -> R:
+                try:
+                    async with self as m:
+                        return cast("R", await f(*args, **kwargs))
+                finally:
+                    append_measurement(m)  # pylint: disable=used-before-assignment
+
+        elif isgeneratorfunction(f):
+
+            @wraps(f)
+            def wrapper(
+                *args: P.args,
+                **kwargs: P.kwargs,
+            ) -> Generator[Y, None, None]:
+                inner = f(*args, **kwargs)
+                try:
+                    with self as m:
+                        yield from inner
+                finally:
+                    append_measurement(m)  # pylint: disable=used-before-assignment
+
+        else:
+
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                try:
+                    with self as m:
+                        return f(*args, **kwargs)
+                finally:
+                    append_measurement(m)  # pylint: disable=used-before-assignment
+
+        wrapped = cast(
+            "_TimedCallable[P, R] | "
+            "_TimedCallable[P, AsyncGenerator[Y, None]] | "
+            "_TimedCallable[P, Generator[Y, None, None]]",
+            wrapper,
+        )
+        wrapped.measurements = measurements
+        return wrapped
