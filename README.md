@@ -14,17 +14,9 @@
     <a href="https://pepy.tech/project/timerun"><img alt="Total Downloads" src="https://static.pepy.tech/badge/timerun"></a>
 </p>
 
-TimeRun is a **single-file** Python package with no dependencies beyond the [Python Standard Library](https://docs.python.org/3/library/). The package is designed to stay minimal and dependency-free.
+TimeRun is a **single-file** Python package with **no dependencies** beyond the standard library. It records **wall-clock time** and **CPU time** for code blocks or function calls and supports optional **metadata** (e.g. run id, tags) per measurement.
 
-It records **wall-clock time** (real elapsed time) and **CPU time** (process time) for code blocks or function calls, and lets you attach optional **metadata** (e.g. run id, tags) to each measurement.
-
-## Setup
-
-### Prerequisites
-
-**Python 3.10+**
-
-### Installation
+## Installation
 
 From [PyPI](https://pypi.org/project/timerun/):
 
@@ -32,17 +24,19 @@ From [PyPI](https://pypi.org/project/timerun/):
 pip install timerun
 ```
 
-From source:
+From [source](https://github.com/HH-MWB/timerun):
 
 ```bash
 pip install git+https://github.com/HH-MWB/timerun.git
 ```
 
-## Quickstart
+*Note: Requires Python 3.10+.*
+
+## Usage
 
 ### Time Code Block
 
-Use `with Timer() as m:` or `async with Timer() as m:`. On block exit, the yielded `Measurement` has `wall_time` and `cpu_time` set.
+Use `with Timer() as m:` (or `async with`). The yielded `Measurement` has `wall_time` and `cpu_time`:
 
 ```python
 >>> from timerun import Timer
@@ -59,7 +53,7 @@ datetime.timedelta(microseconds=8)
 
 ### Time Function Calls
 
-Use `@Timer()` to time every call. Works with sync and async functions and with sync and async generators. One `Measurement` per call is appended to the wrapped callable's `measurements` deque.
+Use `@Timer()`. One `Measurement` per call is appended to the callable’s `measurements` deque:
 
 ```python
 >>> from timerun import Timer

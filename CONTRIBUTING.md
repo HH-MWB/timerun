@@ -17,7 +17,7 @@ Thank you for considering contributing to TimeRun. This guide explains how to se
 
 ## Code of Conduct
 
-Please be respectful and constructive. By participating, you agree to uphold a welcoming environment for everyone.
+This project adheres to the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/3/0/). See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for the full text and how to report issues.
 
 ## How You Can Help
 
@@ -95,21 +95,29 @@ We expect (all run via `make lint`):
 
 ```
 timerun/
-├── timerun.py          # Library (single-file by design)
-├── features/            # BDD feature files (Gherkin) — behave convention
-│   ├── __init__.py      # Makes features a package for imports
+├── .editorconfig             # Editor configuration for consistent style across editors
+├── .github/                  # GitHub configuration
+│   ├── ISSUE_TEMPLATE/       # Issue templates (bug report, feature request)
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── workflows/            # CI and release workflows
+├── .pre-commit-config.yaml   # Pre-commit hooks configuration
+├── features/                 # BDD feature files (Gherkin) — behave convention
 │   ├── *.feature
-│   ├── environment.py  # Optional: hooks (before/after scenario, etc.)
-│   └── steps/           # Step definitions (flat; all .py files loaded)
+│   ├── __init__.py
+│   ├── environment.py        # Optional: hooks (before/after scenario, etc.)
+│   └── steps/                # Step definitions (flat; all .py files loaded)
 │       ├── __init__.py
-│       ├── utils.py         # Shared constants and helpers (no step decorators)
-│       ├── common_steps.py  # Shared steps used by multiple features
-│       └── *_steps.py       # Feature-specific step files
-├── pyproject.toml       # Project metadata and config
-├── Makefile             # Commands: init, check-venv, test, test-verbose, lint, clean, help
+│       ├── utils.py          # Shared constants and helpers (no step decorators)
+│       ├── common_steps.py   # Shared steps used by multiple features
+│       └── *_steps.py        # Feature-specific step files
+├── pyproject.toml            # Project metadata and config
+├── timerun.py                # Library (single-file by design)
+├── Makefile                  # Commands: init, check-venv, test, test-verbose, lint, clean, help
 ├── README.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-└── LICENSE
+├── LICENSE
+└── SECURITY.md
 ```
 
 - **`timerun.py`** — The only library module; keep it a single file by design.
