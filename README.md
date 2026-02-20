@@ -70,6 +70,18 @@ datetime.timedelta(microseconds=8)
 
 *Note: Argument `maxlen` caps how many measurements are kept (e.g. `@Timer(maxlen=10)`). By default the deque is unbounded.*
 
+### Callbacks on Start and End
+
+Optional `on_start` and `on_end` callbacks run once per measurement. Both receive the measurement instance (`on_start` before timings are set, `on_end` after). Typical uses are logging, forwarding to OpenTelemetry, or enqueueing to a metrics pipeline.
+
+```python
+>>> from timerun import Timer
+>>> with Timer(on_end=lambda m: print(m.wall_time.timedelta)):
+...     pass  # code block to be measured
+...  
+0:00:00.000008
+```
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](https://github.com/HH-MWB/timerun/blob/main/CONTRIBUTING.md) for setup, testing, and pull request guidelines.

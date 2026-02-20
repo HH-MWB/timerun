@@ -132,10 +132,26 @@ class Timer:
     metadata : dict or None, optional
         Key-value metadata for the measurement(s). Stored by reference; each
         measurement gets a deep copy at enter time. Defaults to ``{}``.
+    on_start : callable or None, optional
+        Called once per measurement when timing is about to start. Receives the
+        :class:`Measurement` (with ``metadata`` set; ``wall_time`` and
+        ``cpu_time`` are ``None``). Use for logging or setting up external span
+        context. Defaults to ``None``.
+    on_end : callable or None, optional
+        Called once per measurement when timing has just ended. Receives the
+        :class:`Measurement` with ``wall_time`` and ``cpu_time`` set. Use for
+        logging duration, sending to OpenTelemetry, or enqueueing to a metrics
+        pipeline. Defaults to ``None``.
     maxlen : int or None, optional
         Only used in decorator mode. Maximum number of measurements to keep on
         the wrapped callable. Ignored when used as a context manager. Defaults
         to ``None`` (unbounded).
+
+    Notes
+    -----
+    Callbacks are synchronous only. For async exporters (e.g. OpenTelemetry),
+    schedule work from the callback (e.g. ``asyncio.create_task(export(m))``
+    when in an async context, or a thread/queue).
 
     Yields (context manager)
     -----------------------
@@ -168,21 +184,34 @@ class Timer:
 
     def __init__(
         self,
+        *,
         metadata: dict[str, object] | None = None,
+        on_start: Callable[[Measurement], None] | None = None,
+        on_end: Callable[[Measurement], None] | None = None,
         maxlen: int | None = None,
     ) -> None:
-        """Initialize with optional metadata and maxlen (decorator mode)."""
+        """Init with optional metadata, callbacks, and maxlen (decorator)."""
         self._metadata = metadata if isinstance(metadata, dict) else {}
+        self._on_start = on_start
+        self._on_end = on_end
         self._maxlen = maxlen
         self._local = local()
 
     def __enter__(self) -> Measurement:
         """Start timing; return the measurement record."""
+        # Create measurement with a deep copy of timer metadata.
         measurement = Measurement(metadata=deepcopy(self._metadata))
+
+        # Ensure thread-local stack exists and record start timestamps.
         self._local.stack = getattr(self._local, "stack", deque())
         self._local.stack.append(
             (measurement, perf_counter_ns(), process_time_ns()),
         )
+
+        # Notify caller timing started (wall_time/cpu_time still None).
+        if self._on_start is not None:
+            self._on_start(measurement)
+
         return measurement
 
     def __exit__(
@@ -192,15 +221,25 @@ class Timer:
         exc_tb: TracebackType | None,
     ) -> Literal[False]:
         """Stop timing; set wall_time and cpu_time on the measurement."""
+        # Capture end timestamps (before popping to pair with __enter__).
         cpu_end = process_time_ns()
         wall_end = perf_counter_ns()
+
+        # Pop (measurement, wall_start, cpu_start) from this thread.
         try:
             measurement, wall_start, cpu_start = self._local.stack.pop()
         except (AttributeError, IndexError) as e:
             msg = "__exit__ called without a matching __enter__"
             raise RuntimeError(msg) from e
+
+        # Attach elapsed spans to the measurement.
         measurement.wall_time = TimeSpan(start=wall_start, end=wall_end)
         measurement.cpu_time = TimeSpan(start=cpu_start, end=cpu_end)
+
+        # Notify caller that timing has ended (measurement is fully populated).
+        if self._on_end is not None:
+            self._on_end(measurement)
+
         return False
 
     async def __aenter__(self) -> Measurement:
