@@ -263,7 +263,17 @@ class Timer:
         | _TimedCallable[P, AsyncGenerator[Y, None]]
         | _TimedCallable[P, Generator[Y, None, None]]
     ):
-        """When given a callable, wrap it with timing (decorator usage)."""
+        """When given a callable, wrap it with timing (decorator usage).
+
+        Notes
+        -----
+        In each wrapper branch, ``append_measurement(m)`` in the ``finally``
+        block uses ``m`` from the context manager (``with self as m`` or
+        ``async with self as m``). The context manager always runs before the
+        ``finally`` block, so ``m`` is always set. The used-before-assignment
+        linter warning is a false positive.
+
+        """
         measurements: deque[Measurement] = deque(maxlen=self._maxlen)
         lock = Lock()
 
