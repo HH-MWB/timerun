@@ -12,6 +12,7 @@ Thank you for considering contributing to TimeRun. This guide explains how to se
 - [Code Style and Quality](#code-style-and-quality)
 - [Project Structure](#project-structure)
 - [Pull Request Process](#pull-request-process)
+- [Releasing](#releasing)
 - [Reporting Bugs](#reporting-bugs)
 - [License](#license)
 
@@ -81,6 +82,8 @@ TimeRun uses **behavior-driven development (BDD)** with [behave](https://behave.
 
 Pre-commit hooks (installed by `make init`) run on each commit. Before pushing, run `make lint` and fix any failures so CI stays green.
 
+CI (on pull requests and pushes to `main`) runs: **lint** (pre-commit) → **test** (Python 3.10–3.14 matrix, with coverage) → **build** (package build and `twine check`). Outdated runs for the same branch are cancelled automatically.
+
 We expect (all run via `make lint`):
 
 - **pre-commit-hooks** — Trailing whitespace removed, end-of-file newline, no BOM, LF line endings; YAML and TOML syntax checked
@@ -99,7 +102,7 @@ timerun/
 ├── .github/                  # GitHub configuration
 │   ├── ISSUE_TEMPLATE/       # Issue templates (bug report, feature request)
 │   ├── PULL_REQUEST_TEMPLATE.md
-│   └── workflows/            # CI and release workflows
+│   └── workflows/            # CI (ci.yaml) and release (release.yaml) workflows
 ├── .pre-commit-config.yaml   # Pre-commit hooks configuration
 ├── features/                 # BDD feature files (Gherkin) — behave convention
 │   ├── *.feature
@@ -155,6 +158,29 @@ timerun/
    - Confirm tests pass and, for new behavior, that BDD scenarios were added or updated.
 
 Maintainers will review and may request changes. Once approved, your PR will be merged.
+
+## Releasing
+
+Releases are driven by **GitHub Releases** and publish to **TestPyPI** first, then **PyPI** after confirmation.
+
+### Prerequisites (maintainers)
+
+- **Environments** in this repo: `testpypi` and `pypi` (Settings → Environments).
+- **Trusted Publishing** configured on [PyPI](https://pypi.org/manage/account/publishing/) and [TestPyPI](https://test.pypi.org/manage/account/publishing/) for this repository, workflow `release.yaml`, and the corresponding environment names.
+
+### Release flow
+
+1. **Bump version** in `timerun.py` (`__version__`) and commit to `main`.
+2. **Create a GitHub Release** (Releases → Draft a new release):
+   - Choose or create a tag (e.g. `v0.7.0`) from `main`.
+   - Check **“This is a pre-release”**.
+   - Add release notes and publish.
+3. The **release workflow** runs and publishes the package to **TestPyPI** only.
+4. **Test** the package from TestPyPI (e.g. `pip install -i https://test.pypi.org/simple/ timerun==0.7.0`).
+5. When satisfied, **edit the release** on GitHub: uncheck “This is a pre-release” and save.
+6. The workflow runs again and publishes to **PyPI**.
+
+The same workflow handles both events: `release: types: [published, edited]`. Pre-release → TestPyPI; full release → PyPI.
 
 ## Reporting Bugs
 
