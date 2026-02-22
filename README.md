@@ -16,6 +16,8 @@
 
 TimeRun is a **single-file** Python package with **no dependencies** beyond the standard library. It records **wall-clock time** and **CPU time** for code blocks or function calls and supports optional **metadata** (e.g. run id, tags) per measurement.
 
+For the full value proposition and positioning, see [Why TimeRun](https://hh-mwb.github.io/timerun/about/) on the docs site.
+
 ## Installation
 
 From [PyPI](https://pypi.org/project/timerun/):

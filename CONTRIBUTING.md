@@ -43,7 +43,7 @@ This project adheres to the [Contributor Covenant Code of Conduct](https://www.c
    cd timerun
    ```
 
-2. Run `make init`. This creates a `.venv`, installs the package in editable mode with dev dependencies, and installs pre-commit hooks.
+2. Run `make init`. This creates a `.venv`, installs the package in editable mode with dev and docs dependencies (Zensical), and installs pre-commit hooks.
 
 3. Optionally activate the venv for interactive use: `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`). You can run `make test` and `make lint` without activating.
 
@@ -57,11 +57,13 @@ This project adheres to the [Contributor Covenant Code of Conduct](https://www.c
 Use the Makefile for common tasks. Run `make help` for the full list.
 
 - **`make help`** — Show all targets and descriptions
-- **`make init`** — Set up venv, install package and dev deps, install pre-commit hooks
+- **`make init`** — Set up venv, install package and dev + docs deps (Zensical), install pre-commit hooks
 - **`make test`** — Run BDD tests with coverage (summary output)
 - **`make test-verbose`** — Run BDD tests with full scenario/step output (for debugging)
 - **`make lint`** — Run pre-commit (format and lint) on all files
-- **`make clean`** — Remove venv, caches, and build artifacts
+- **`make docs`** — Serve the docs locally (http://127.0.0.1:8000)
+- **`make docs-build`** — Build the docs site (output in `site/`; config: `zensical.toml`)
+- **`make clean`** — Remove venv, caches, build artifacts, and `site/`
 
 ## Testing
 
@@ -114,8 +116,10 @@ timerun/
 │       ├── common_steps.py   # Shared steps used by multiple features
 │       └── *_steps.py        # Feature-specific step files
 ├── pyproject.toml            # Project metadata and config
+├── zensical.toml             # Docs site config (Zensical)
+├── docs/                     # Docs source (Markdown)
 ├── timerun.py                # Library (single-file by design)
-├── Makefile                  # Commands: init, check-venv, test, test-verbose, lint, clean, help
+├── Makefile                  # Commands: init, check-venv, test, lint, docs, docs-build, clean, help
 ├── README.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md

@@ -17,7 +17,7 @@ PYTHON := python3
 
 # Derived: do not edit (computed from above or project layout)
 VENV_BIN := $(VENV_DIR)/bin
-CLEAN_RM := $(VENV_DIR) .mypy_cache .ruff_cache .coverage htmlcov
+CLEAN_RM := $(VENV_DIR) .mypy_cache .ruff_cache .coverage htmlcov site
 CLEAN_GLOB := *.egg-info
 COVERAGE_SOURCE := timerun
 
@@ -50,10 +50,10 @@ help: ## Display this help message with all available targets
 ##@ Environment
 
 .PHONY: init
-init: ## Set up Python development environment with pre-commit hooks
+init: ## Set up Python development environment (dev + docs deps) and pre-commit hooks
 	@echo "Setting up TimeRun development environment..."
 	@test -d "$(VENV_DIR)" || $(PYTHON) -m venv "$(VENV_DIR)" >/dev/null 2>&1
-	@$(VENV_BIN)/pip install -e ".[dev]" >/dev/null 2>&1
+	@$(VENV_BIN)/pip install -e ".[dev,docs]" >/dev/null 2>&1
 	@$(VENV_BIN)/pip install pre-commit >/dev/null 2>&1
 	@$(VENV_BIN)/pre-commit install >/dev/null 2>&1
 
@@ -88,6 +88,20 @@ test-verbose: BEHAVE_ARGS :=
 test-verbose: check-venv ## Run BDD tests with full scenario/step output (for debugging failures)
 	@$(VENV_BIN)/coverage run --source=$(COVERAGE_SOURCE) -m behave $(BEHAVE_ARGS)
 	@$(VENV_BIN)/coverage report --show-missing
+
+# ============================================================================
+# Docs Targets (Zensical; docs deps installed by make init)
+# ============================================================================
+
+##@ Docs
+
+.PHONY: docs
+docs: check-venv ## Serve the docs locally (http://127.0.0.1:8000); Ctrl+C removes site/
+	@trap 'rm -rf site' INT; $(VENV_BIN)/zensical serve
+
+.PHONY: docs-build
+docs-build: check-venv ## Build the docs site (output in site/); ensures site/.gitignore
+	@$(VENV_BIN)/zensical build
 
 # ============================================================================
 # Lint Targets
