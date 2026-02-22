@@ -47,7 +47,7 @@ jobs:
   publish-testpypi:
     name: Publish to TestPyPI
     needs: build
-    if: release.prerelease
+    if: github.event.release.prerelease
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,7 +70,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: build
-    if: ${{ !release.prerelease }}
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
