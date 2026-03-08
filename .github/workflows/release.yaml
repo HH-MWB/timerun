@@ -8,6 +8,13 @@ on:
       - published
       - edited
 
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build distribution

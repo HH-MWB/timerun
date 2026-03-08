@@ -104,7 +104,7 @@ timerun/
 ├── .github/                  # GitHub configuration
 │   ├── ISSUE_TEMPLATE/       # Issue templates (bug report, feature request)
 │   ├── PULL_REQUEST_TEMPLATE.md
-│   └── workflows/            # CI (ci.yaml) and release (release.yaml) workflows
+│   └── workflows/            # CI (ci.yaml), pages (pages.yaml), release (release.yaml)
 ├── .pre-commit-config.yaml   # Pre-commit hooks configuration
 ├── features/                 # BDD feature files (Gherkin) — behave convention
 │   ├── *.feature
