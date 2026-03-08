@@ -18,7 +18,7 @@ keywords = [
 ]
 authors = [{ name = "HH-MWB", email = "h.hong@mail.com" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -34,7 +34,8 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["behave", "coverage"]
+dev = ["behave", "coverage", "pip-audit"]
+docs = ["zensical"]
 
 [project.urls]
 Homepage = "https://github.com/HH-MWB/timerun"
@@ -107,3 +108,6 @@ max-complexity = 5
 
 [tool.ruff.lint.per-file-ignores]
 "features/steps/*.py" = ["S101"]
+
+[tool.coverage.report]
+fail_under = 100

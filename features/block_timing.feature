@@ -64,6 +64,20 @@ Feature: Block timing
     And the second measurement's metadata key "tag" is "original"
     And the second measurement's metadata does not contain key "extra"
 
+  # --- Callbacks on start and end ---
+
+  Scenario: The on_start callback is invoked once with the same measurement instance the Timer yields for that block
+    Given an on_start callback that records invocations
+    When I measure a code block with a Timer that has that on_start callback
+    Then the on_start callback was called once
+    And the on_start callback was called with the same measurement instance that the Timer yielded for that block
+
+  Scenario: The on_end callback is invoked once with the same measurement instance the Timer yields for that block
+    Given an on_end callback that records invocations
+    When I measure a code block with a Timer that has that on_end callback
+    Then the on_end callback was called once
+    And the on_end callback was called with the same measurement instance that the Timer yielded for that block
+
   # --- Edge cases and errors ---
 
   Scenario: Block that raises still yields measurement; exception propagates

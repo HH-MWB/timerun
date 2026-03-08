@@ -1,44 +1,142 @@
-# Makefile for Timerun
-# Description: Development environment setup and project management
-# Requirements: Python 3, pip
+# TimeRun - Makefile
+#
+# Commands for development setup, testing, linting, and docs.
+# Requires Python 3.10+ and pip.
+#
+# Usage: make [target] (run "make help" for all targets)
 
-.DEFAULT_GOAL := help
+# ============================================================================
+# Configuration (edit only the "Editable" block if needed)
+# ============================================================================
 
-# Project configuration
+# ---- Editable ----
+# PYTHON: Interpreter for "make init". Empty = prompt; set to skip.
+PYTHON ?=
+# VENV_DIR: Virtualenv directory (e.g. .venv or venv).
 VENV_DIR := .venv
 
+# ---- Do Not Edit ----
+COVERAGE_SOURCE := timerun
+VENV_BIN := $(VENV_DIR)/bin
+GITIGNORE_PATHS := \
+	.gitignore \
+	$(VENV_DIR) \
+	.mypy_cache \
+	.ruff_cache \
+	.coverage \
+	htmlcov \
+	site
+GITIGNORE_GLOBS := \
+	*.pyc \
+	*.egg-info \
+	__pycache__
+
+# Default target when no target is specified
+.DEFAULT_GOAL := help
+
+# ============================================================================
+# General Targets
+# ============================================================================
+
+##@ General
+
 .PHONY: help
-help: ## Show this help message
-	@echo "Available targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+help: ## Display this help message with all available targets
+	@echo "TimeRun - Available Commands"
+	@echo ""
+	@echo "Usage: make [target]"
+	@awk 'BEGIN {FS = ":.*##"} \
+		/^[a-zA-Z_0-9-]+:.*?##/ { \
+			printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 \
+		} \
+		/^##@/ { \
+			printf "\n\033[1m%s\033[0m\n", substr($$0, 5) \
+		}' $(MAKEFILE_LIST)
+
+# ============================================================================
+# Environment Targets
+# ============================================================================
+
+##@ Environment
 
 .PHONY: init
-init: ## Set up Python development environment with pre-commit hooks
-	@test -d "$(VENV_DIR)" || python3 -m venv "$(VENV_DIR)" >/dev/null 2>&1
-	@"$(VENV_DIR)/bin/pip" install -e ".[dev]" >/dev/null 2>&1
-	@"$(VENV_DIR)/bin/pip" install pre-commit >/dev/null 2>&1
-	@"$(VENV_DIR)/bin/pre-commit" install >/dev/null 2>&1
-	@echo "Development environment ready! To activate it, run: source $(VENV_DIR)/bin/activate"
-
-.PHONY: test
-test: ## Run BDD tests (progress + summary + coverage)
-	@"$(VENV_DIR)/bin/coverage" run --source=timerun -m behave -f progress
-	@"$(VENV_DIR)/bin/coverage" report --show-missing
-
-.PHONY: test-summary
-test-summary: ## Run BDD tests (summary and coverage only; use 'make test' to see which feature failed)
-	@"$(VENV_DIR)/bin/coverage" run --source=timerun -m behave -f null
-	@"$(VENV_DIR)/bin/coverage" report --show-missing
-
-.PHONY: test-verbose
-test-verbose: ## Run BDD tests with full scenario/step output (for debugging failures)
-	@"$(VENV_DIR)/bin/coverage" run --source=timerun -m behave
-	@"$(VENV_DIR)/bin/coverage" report --show-missing
+init: ## Set up dev env. Prompts for Python, or: make init PYTHON=python3.10
+	@set -f; \
+	printf '%s\n' $(GITIGNORE_PATHS) $(GITIGNORE_GLOBS) > .gitignore; \
+	set +f;
+	@if [ -n "$(PYTHON)" ]; then \
+		py="$(PYTHON)"; \
+	elif [ -t 0 ]; then \
+		read -p "Which Python interpreter? [python3]: " py; \
+		py=$${py:-python3}; \
+	else \
+		py=python3; \
+	fi; \
+	if [ ! -d "$(VENV_DIR)" ]; then $$py -m venv "$(VENV_DIR)" >/dev/null; fi
+	@$(VENV_BIN)/pip install --upgrade pip >/dev/null
+	@$(VENV_BIN)/pip install -e ".[dev,docs]" >/dev/null
+	@$(VENV_BIN)/pip install pre-commit >/dev/null
+	@$(VENV_BIN)/pre-commit install >/dev/null
 
 .PHONY: clean
-clean: ## Delete all temporary files including venv
-	@rm -rf "$(VENV_DIR)" *.egg-info
-	@rm -rf .mypy_cache .ruff_cache .coverage htmlcov
-	@find . -name "*.pyc" -delete
-	@find . -name "__pycache__" -type d -exec rm -rf {} +
+clean: ## Remove all files/dirs listed in .gitignore (inverse of init)
+	@rm -rf $(GITIGNORE_PATHS)
+	@set -f; \
+	for p in $(GITIGNORE_GLOBS); do \
+		find . -not -path './.git/*' -name "$$p" \
+			-exec rm -rf {} + 2>/dev/null || true; \
+	done; \
+	set +f
+
+# Internal: used by test, docs, lint; not shown in help
+.PHONY: check-venv
+check-venv:
+	@if [ ! -d "$(VENV_DIR)" ]; then \
+		echo "Error: $(VENV_DIR) not found!"; \
+		echo "Please run 'make init' to create the development environment."; \
+		exit 1; \
+	fi
+	@if ! $(VENV_BIN)/python -c "import timerun" 2>/dev/null; then \
+		echo "Error: timerun not installed in $(VENV_DIR)!"; \
+		echo "Please run 'make init' to install the package and dependencies."; \
+		exit 1; \
+	fi
+
+# ============================================================================
+# Testing Targets
+# ============================================================================
+
+##@ Testing
+
+.PHONY: test
+test: BEHAVE_ARGS := -f null
+test: test-verbose  ## Run BDD tests (summary + coverage; failures show which scenario failed)
+
+.PHONY: test-verbose
+test-verbose: check-venv ## Run BDD tests with full scenario/step output (for debugging failures)
+	@$(VENV_BIN)/coverage run --source=$(COVERAGE_SOURCE) -m behave $(BEHAVE_ARGS)
+	@$(VENV_BIN)/coverage report --show-missing
+
+# ============================================================================
+# Docs Targets (Zensical; docs deps installed by make init)
+# ============================================================================
+
+##@ Docs
+
+.PHONY: docs
+docs: check-venv ## Serve the docs locally (http://127.0.0.1:8000); Ctrl+C removes site/
+	@trap 'rm -rf site' INT; $(VENV_BIN)/zensical serve
+
+.PHONY: docs-build
+docs-build: check-venv ## Build the docs site (output in site/); ensures site/.gitignore
+	@$(VENV_BIN)/zensical build
+
+# ============================================================================
+# Lint Targets
+# ============================================================================
+
+##@ Lint
+
+.PHONY: lint
+lint: check-venv ## Run pre-commit (lint and format checks) on all files
+	@$(VENV_BIN)/pre-commit run --all-files
