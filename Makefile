@@ -1,25 +1,35 @@
 # TimeRun - Makefile
 #
-# This Makefile provides convenient commands for development environment setup,
-# testing, linting, and project management. Requirements: Python 3.10+, pip.
+# Commands for development setup, testing, linting, and docs.
+# Requires Python 3.10+ and pip.
 #
-# Usage:
-#   make [target]
-#   make help          # Display available targets and descriptions
+# Usage: make [target] (run "make help" for all targets)
 
 # ============================================================================
 # Configuration (edit only the "Editable" block if needed)
 # ============================================================================
 
-# Editable: change these to match your environment
+# ---- Editable ----
+# PYTHON: Interpreter for "make init". Empty = prompt; set to skip.
+PYTHON ?=
+# VENV_DIR: Virtualenv directory (e.g. .venv or venv).
 VENV_DIR := .venv
-PYTHON := python3
 
-# Derived: do not edit (computed from above or project layout)
-VENV_BIN := $(VENV_DIR)/bin
-CLEAN_RM := $(VENV_DIR) .mypy_cache .ruff_cache .coverage htmlcov site
-CLEAN_GLOB := *.egg-info
+# ---- Do Not Edit ----
 COVERAGE_SOURCE := timerun
+VENV_BIN := $(VENV_DIR)/bin
+GITIGNORE_PATHS := \
+	.gitignore \
+	$(VENV_DIR) \
+	.mypy_cache \
+	.ruff_cache \
+	.coverage \
+	htmlcov \
+	site
+GITIGNORE_GLOBS := \
+	*.pyc \
+	*.egg-info \
+	__pycache__
 
 # Default target when no target is specified
 .DEFAULT_GOAL := help
@@ -50,15 +60,37 @@ help: ## Display this help message with all available targets
 ##@ Environment
 
 .PHONY: init
-init: ## Set up Python development environment (dev + docs deps) and pre-commit hooks
-	@echo "Setting up TimeRun development environment..."
-	@test -d "$(VENV_DIR)" || $(PYTHON) -m venv "$(VENV_DIR)" >/dev/null 2>&1
-	@$(VENV_BIN)/pip install -e ".[dev,docs]" >/dev/null 2>&1
-	@$(VENV_BIN)/pip install pre-commit >/dev/null 2>&1
-	@$(VENV_BIN)/pre-commit install >/dev/null 2>&1
+init: ## Set up dev env. Prompts for Python, or: make init PYTHON=python3.10
+	@set -f; \
+	printf '%s\n' $(GITIGNORE_PATHS) $(GITIGNORE_GLOBS) > .gitignore; \
+	set +f;
+	@if [ -n "$(PYTHON)" ]; then \
+		py="$(PYTHON)"; \
+	elif [ -t 0 ]; then \
+		read -p "Which Python interpreter? [python3]: " py; \
+		py=$${py:-python3}; \
+	else \
+		py=python3; \
+	fi; \
+	if [ ! -d "$(VENV_DIR)" ]; then $$py -m venv "$(VENV_DIR)" >/dev/null; fi
+	@$(VENV_BIN)/pip install --upgrade pip >/dev/null
+	@$(VENV_BIN)/pip install -e ".[dev,docs]" >/dev/null
+	@$(VENV_BIN)/pip install pre-commit >/dev/null
+	@$(VENV_BIN)/pre-commit install >/dev/null
 
+.PHONY: clean
+clean: ## Remove all files/dirs listed in .gitignore (inverse of init)
+	@rm -rf $(GITIGNORE_PATHS)
+	@set -f; \
+	for p in $(GITIGNORE_GLOBS); do \
+		find . -not -path './.git/*' -name "$$p" \
+			-exec rm -rf {} + 2>/dev/null || true; \
+	done; \
+	set +f
+
+# Internal: used by test, docs, lint; not shown in help
 .PHONY: check-venv
-check-venv: ## Ensure virtual environment exists and timerun is installed (internal)
+check-venv:
 	@if [ ! -d "$(VENV_DIR)" ]; then \
 		echo "Error: $(VENV_DIR) not found!"; \
 		echo "Please run 'make init' to create the development environment."; \
@@ -76,15 +108,11 @@ check-venv: ## Ensure virtual environment exists and timerun is installed (inter
 
 ##@ Testing
 
-# BEHAVE_ARGS set per target: -f null for quiet, empty for verbose
 .PHONY: test
 test: BEHAVE_ARGS := -f null
-test: check-venv ## Run BDD tests (summary + coverage; failures show which scenario failed)
-	@$(VENV_BIN)/coverage run --source=$(COVERAGE_SOURCE) -m behave $(BEHAVE_ARGS)
-	@$(VENV_BIN)/coverage report --show-missing
+test: test-verbose  ## Run BDD tests (summary + coverage; failures show which scenario failed)
 
 .PHONY: test-verbose
-test-verbose: BEHAVE_ARGS :=
 test-verbose: check-venv ## Run BDD tests with full scenario/step output (for debugging failures)
 	@$(VENV_BIN)/coverage run --source=$(COVERAGE_SOURCE) -m behave $(BEHAVE_ARGS)
 	@$(VENV_BIN)/coverage report --show-missing
@@ -112,15 +140,3 @@ docs-build: check-venv ## Build the docs site (output in site/); ensures site/.g
 .PHONY: lint
 lint: check-venv ## Run pre-commit (lint and format checks) on all files
 	@$(VENV_BIN)/pre-commit run --all-files
-
-# ============================================================================
-# Cleanup Targets
-# ============================================================================
-
-##@ Cleanup
-
-.PHONY: clean
-clean: ## Remove temporary files, caches, and virtual environment
-	@rm -rf $(CLEAN_RM) $(CLEAN_GLOB)
-	@find . -name "*.pyc" -delete 2>/dev/null || true
-	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
