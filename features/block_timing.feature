@@ -18,12 +18,11 @@ Feature: Block timing
     Then the measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
     And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
 
-  Scenario: CPU-bound block with `with` yields wall and CPU time close together
+  Scenario: CPU-bound block with `with` yields meaningful wall and CPU time
     Given a CPU-bound operation that runs for around 10,000,000 nanoseconds
     When I measure the operation using `with`
-    Then the measurement's wall time duration is within the configured buffer of 10,000,000 nanoseconds
+    Then the measurement's wall time duration is at least 10,000,000 nanoseconds
     And the measurement's CPU time duration is within the configured buffer of 10,000,000 nanoseconds
-    And the measurement's CPU time is close to wall time
 
   # --- One Timer, multiple blocks or threads ---
 

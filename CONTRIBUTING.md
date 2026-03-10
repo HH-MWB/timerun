@@ -112,7 +112,6 @@ timerun/
 │   ├── environment.py        # Optional: hooks (before/after scenario, etc.)
 │   └── steps/                # Step definitions (flat; all .py files loaded)
 │       ├── __init__.py
-│       ├── utils.py          # Shared constants and helpers (no step decorators)
 │       ├── common_steps.py   # Shared steps used by multiple features
 │       └── *_steps.py        # Feature-specific step files
 ├── pyproject.toml            # Project metadata and config
@@ -128,7 +127,7 @@ timerun/
 ```
 
 - **`timerun.py`** — The only library module; keep it a single file by design.
-- **`features/`** — All executable specs; no separate unit test directory. Layout follows [behave](https://behave.readthedocs.io/) convention: step definitions live under `features/steps/` (flat; subdirectories are not searched). Shared logic lives in `features/steps/utils.py`; shared steps (e.g. metadata, wall-time buffer, exception propagation) in `common_steps.py`. Run behave from the project root so `from features.steps.utils import ...` works.
+- **`features/`** — All executable specs; no separate unit test directory. Layout follows [behave](https://behave.readthedocs.io/) convention: step definitions live under `features/steps/` (flat; subdirectories are not searched). Shared steps (e.g. metadata, wall-time buffer, exception propagation) live in `common_steps.py`. Run behave from the project root.
 
 ## Pull Request Process
 

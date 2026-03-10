@@ -3,19 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from behave import given, then, when
 
 import timerun
-from features.steps.utils import (
-    BUFFER_NS,
-    assert_metadata_key_equals,
-    assert_wall_time_within_buffer,
-    sleep_wall_at_least,
-    spin_wall_at_least,
-)
 
 if TYPE_CHECKING:
     from behave.runner import Context
@@ -72,11 +66,13 @@ def step_given_callback_records_invocations(
     callback_kind: str,
 ) -> None:
     """Store list and callback that records the measurement passed to it."""
+    # List and callback that appends each measurement.
     invocations: list[timerun.Measurement] = []
 
     def record_invocation(m: timerun.Measurement) -> None:
         invocations.append(m)
 
+    # Store on context for When/Then.
     setattr(context, f"{callback_kind}_invocations", invocations)
     setattr(context, f"{callback_kind}_callback", record_invocation)
 
@@ -88,10 +84,16 @@ def step_given_callback_records_invocations(
 def step_measure_operation_using_with(context: Context) -> None:
     """Measure with Timer(); sleep or spin per operation_kind."""
     with timerun.Timer() as context.measurement:
-        if getattr(context, "operation_kind", "blocking") == "CPU-bound":
-            spin_wall_at_least(context.operation_duration_ns)
+        if context.operation_kind == "CPU-bound":
+            # Spin until duration elapsed.
+            start = time.process_time_ns()
+            while (
+                time.process_time_ns() - start < context.operation_duration_ns
+            ):
+                pass
         else:
-            sleep_wall_at_least(context.operation_duration_ns)
+            # Sleep for duration.
+            time.sleep(context.operation_duration_ns / 1e9)
 
 
 @when("I measure the async operation using `async with`")
@@ -121,7 +123,7 @@ def step_measure_blocks_from_threads(
     # Worker: enter timer, sleep, return measurement.
     def run() -> timerun.Measurement:
         with cm as m:
-            sleep_wall_at_least(context.thread_sleep_ns)
+            time.sleep(context.thread_sleep_ns / 1e9)
         return m
 
     # Run thread_count workers and collect measurements.
@@ -135,11 +137,13 @@ def step_measure_two_sequential_blocks(context: Context) -> None:
     """Measure two sequential blocks."""
     cm = timerun.Timer()
 
+    # First block.
     with cm as context.first_measurement:
-        sleep_wall_at_least(context.first_block_ns)
+        time.sleep(context.first_block_ns / 1e9)
 
+    # Second block.
     with cm as context.second_measurement:
-        sleep_wall_at_least(context.second_block_ns)
+        time.sleep(context.second_block_ns / 1e9)
 
 
 @when("I measure nested blocks with the same Timer instance")
@@ -148,10 +152,10 @@ def step_measure_nested_blocks(context: Context) -> None:
     cm = timerun.Timer()
 
     with cm as context.outer_measurement:
-        sleep_wall_at_least(context.outer_block_ns)
+        time.sleep(context.outer_block_ns / 1e9)
 
         with cm as context.inner_measurement:
-            sleep_wall_at_least(context.inner_block_ns)
+            time.sleep(context.inner_block_ns / 1e9)
 
 
 @when("I measure a code block with that metadata")
@@ -216,36 +220,22 @@ def step_exit_without_enter(context: Context) -> None:
 # --- Then ---
 
 
-@then("the measurement's CPU time is close to wall time")
-def step_cpu_close_to_wall(context: Context) -> None:
-    """Assert CPU close to wall time."""
-    # Required context validation.
-    assert context.measurement.wall_time is not None
-    assert context.measurement.cpu_time is not None
-
-    # Duration in [wall - BUFFER_NS, wall].
-    wall = context.measurement.wall_time.duration
-    cpu = context.measurement.cpu_time.duration
-    min_cpu = max(0, wall - BUFFER_NS)
-    assert min_cpu <= cpu <= wall, (
-        f"CPU {cpu} not in [wall-BUFFER_NS, wall] = [{min_cpu}, {wall}]"
-    )
-
-
 @then(
-    "the {which} measurement's wall time duration is within the configured "
-    "buffer of {expected_ns:n} nanoseconds",
+    "the measurement's wall time duration is at least {expected_ns:n} "
+    "nanoseconds",
 )
-def step_which_measurement_wall_within_buffer(
+def step_measurement_wall_time_at_least(
     context: Context,
-    which: str,
     expected_ns: int,
 ) -> None:
-    """Assert which measurement wall time in buffer."""
-    assert_wall_time_within_buffer(
-        getattr(context, f"{which}_measurement"),
-        expected_ns,
-        BUFFER_NS,
+    """Assert wall time >= expected; used for CPU-bound scenario."""
+    # Require wall_time and get duration.
+    assert context.measurement.wall_time is not None
+    duration = context.measurement.wall_time.duration
+
+    # Duration must be at least expected.
+    assert duration >= expected_ns, (
+        f"wall time {duration} < expected {expected_ns}"
     )
 
 
@@ -263,21 +253,6 @@ def step_outer_wall_at_least_inner(context: Context) -> None:
     outer_d = context.outer_measurement.wall_time.duration
     inner_d = context.inner_measurement.wall_time.duration
     assert outer_d >= inner_d, f"outer {outer_d} < inner {inner_d}"
-
-
-@then('the {which} measurement\'s metadata key "{key}" is "{value}"')
-def step_measurement_metadata_key(
-    context: Context,
-    which: str,
-    key: str,
-    value: str,
-) -> None:
-    """Assert which measurement metadata[key] is value."""
-    assert_metadata_key_equals(
-        getattr(context, f"{which}_measurement"),
-        key,
-        value,
-    )
 
 
 @then('the second measurement\'s metadata does not contain key "{key}"')

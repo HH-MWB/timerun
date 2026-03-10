@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from behave import given, then, when
 
 import timerun
-from features.steps.utils import (
-    sleep_wall_at_least,
-)
 
 if TYPE_CHECKING:
     from behave.runner import Context
@@ -63,7 +61,7 @@ def step_given_gen(
 def step_when_call_decorated_func(context: Context) -> None:
     """Decorate function with Timer(), run it."""
     if context.func_kind == "async":
-
+        # Define async function, run it, store function and measurement.
         @timerun.Timer()
         async def async_func() -> None:
             await asyncio.sleep(context.func_duration_ns / 1e9)
@@ -72,10 +70,10 @@ def step_when_call_decorated_func(context: Context) -> None:
         context.decorated_function = async_func
         context.measurement = async_func.measurements[-1]
     else:
-
+        # Define sync function, run it, store function and measurement.
         @timerun.Timer()
         def sync_func() -> None:
-            sleep_wall_at_least(context.func_duration_ns)
+            time.sleep(context.func_duration_ns / 1e9)
 
         sync_func()
         context.decorated_function = sync_func
@@ -86,8 +84,9 @@ def step_when_call_decorated_func(context: Context) -> None:
 def step_when_consume_gen(context: Context) -> None:  # noqa: C901
     """Decorate generator with Timer(), consume fully."""
     per_sleep = context.gen_duration_ns // context.gen_count
-    if context.gen_kind == "async":
 
+    if context.gen_kind == "async":
+        # Define async gen and runner; consume; store func and measurement.
         @timerun.Timer()
         async def async_gen() -> object:
             for i in range(context.gen_count):
@@ -102,11 +101,11 @@ def step_when_consume_gen(context: Context) -> None:  # noqa: C901
         context.decorated_function = async_gen
         context.measurement = async_gen.measurements[-1]
     else:
-
+        # Define sync generator; consume; store function and measurement.
         @timerun.Timer()
         def sync_gen() -> object:
             for i in range(context.gen_count):
-                sleep_wall_at_least(per_sleep)
+                time.sleep(per_sleep / 1e9)
                 yield i
 
         for _ in sync_gen():
@@ -132,15 +131,18 @@ def step_when_call_with_metadata(context: Context) -> None:
 def step_when_call_raising(context: Context) -> None:
     """Call raising function under Timer(); catch exception."""
 
+    # Define raising function.
     @timerun.Timer()
     def raising() -> None:
         raise ValueError
 
-    # Call, catch exception for Then to assert; store function and measurement.
+    # Call and catch exception for Then to assert.
     try:
         raising()
     except ValueError as e:
         context.exception = e
+
+    # Store function and measurement for Then.
     context.decorated_function = raising
     context.measurement = raising.measurements[-1]
 
@@ -157,11 +159,12 @@ def step_when_call_three_times(context: Context, times: int) -> None:
 
     @timerun.Timer(maxlen=context.func_maxlen)
     def sync_func() -> None:
-        sleep_wall_at_least(context.func_duration_ns)
+        time.sleep(context.func_duration_ns / 1e9)
 
-    # Call times times; only last maxlen measurements kept.
+    # Call N times; only last maxlen measurements kept.
     for _ in range(times):
         sync_func()
+
     context.decorated_function = sync_func
 
 
@@ -173,17 +176,18 @@ def step_when_call_from_threads(context: Context, thread_count: int) -> None:
 
     @timerun.Timer()
     def sync_func() -> None:
-        sleep_wall_at_least(context.func_duration_ns)
+        time.sleep(context.func_duration_ns / 1e9)
 
-    # Worker: call the timed function once.
     def run() -> None:
         sync_func()
 
-    # Run thread_count workers concurrently; store function and count for Then.
+    # Run thread_count workers concurrently.
     with ThreadPoolExecutor(max_workers=thread_count) as ex:
         futures = [ex.submit(run) for _ in range(thread_count)]
         for f in futures:
             f.result()
+
+    # Store for Then.
     context.decorated_function = sync_func
     context.thread_count = thread_count
 
@@ -196,7 +200,6 @@ def step_when_call_from_threads(context: Context, thread_count: int) -> None:
 def step_then_measurements_count(context: Context, n: int) -> None:
     """Assert measurements count is n."""
     func = context.decorated_function
-    assert hasattr(func, "measurements")
     assert len(func.measurements) == n, (
         f"expected {n} measurements, got {len(func.measurements)}"
     )
