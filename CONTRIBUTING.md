@@ -32,6 +32,8 @@ This project adheres to the [Contributor Covenant Code of Conduct](https://www.c
 ### Prerequisites
 
 - **Python 3.10+**
+- **pip** (usually bundled with Python)
+- **Make**
 - **Git**
 
 ### One-time setup
@@ -39,7 +41,7 @@ This project adheres to the [Contributor Covenant Code of Conduct](https://www.c
 1. Fork the repository on GitHub, then clone your fork and go into the project directory:
 
    ```bash
-   git clone https://github.com/HH-MWB/timerun.git
+   git clone https://github.com/YOUR_USERNAME/timerun.git
    cd timerun
    ```
 

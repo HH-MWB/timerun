@@ -8,7 +8,7 @@
 
 Two common ways to get a list of measurements:
 
-1. **From a decorated function** — use the timer’s `measurements` deque when you run the same function many times (e.g. benchmarks or repeated calls):
+1. **From a decorated function** — use the wrapped callable’s `measurements` deque when you run the same function many times (e.g. benchmarks or repeated calls):
 
 ```python
 from timerun import Timer
