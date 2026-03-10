@@ -70,6 +70,4 @@ def step_measurement_time_duration(
 @then("the measurement's metadata is an empty dict")
 def step_measurement_metadata_empty_dict(context: Context) -> None:
     """Assert metadata is empty dict."""
-    metadata = context.measurement.metadata
-    assert isinstance(metadata, dict)
-    assert not metadata
+    assert context.measurement.metadata == {}

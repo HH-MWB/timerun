@@ -202,15 +202,15 @@ class Timer:
         # Create measurement with a deep copy of timer metadata.
         measurement = Measurement(metadata=deepcopy(self._metadata))
 
+        # Notify caller timing started (wall_time/cpu_time still None).
+        if self._on_start is not None:
+            self._on_start(measurement)
+
         # Ensure thread-local stack exists and record start timestamps.
         self._local.stack = getattr(self._local, "stack", deque())
         self._local.stack.append(
             (measurement, perf_counter_ns(), process_time_ns()),
         )
-
-        # Notify caller timing started (wall_time/cpu_time still None).
-        if self._on_start is not None:
-            self._on_start(measurement)
 
         return measurement
 
