@@ -22,7 +22,7 @@ from typing import (
     cast,
 )
 
-__version__: str = "0.6.0"
+__version__: str = "0.6.1"
 
 __all__ = [
     "Measurement",
