@@ -46,6 +46,26 @@ Feature: Block timing
     And the inner measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
     And the outer measurement's wall time duration is at least the inner measurement's wall time duration
 
+  # --- One Timer, multiple concurrent tasks ---
+
+  Scenario: The task that started first finishes first
+    Given a Timer shared by both tasks
+    And task A runs for 1,000,000 nanoseconds
+    And task B runs for 5,000,000 nanoseconds
+    And task A starts before task B
+    When I run both tasks concurrently with the same Timer
+    Then the first measurement's wall time duration is within the configured buffer of 1,000,000 nanoseconds
+    And the second measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
+
+  Scenario: The task that started second finishes first
+    Given a Timer shared by both tasks
+    And task A runs for 5,000,000 nanoseconds
+    And task B runs for 1,000,000 nanoseconds
+    And task A starts before task B
+    When I run both tasks concurrently with the same Timer
+    Then the first measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
+    And the second measurement's wall time duration is within the configured buffer of 1,000,000 nanoseconds
+
   # --- Metadata ---
 
   Scenario: Initial metadata is carried on the yielded measurement
@@ -88,3 +108,9 @@ Feature: Block timing
     When I call __exit__ on a Timer instance without calling __enter__ first
     Then a RuntimeError is raised
     And the error message is "__exit__ called without a matching __enter__"
+
+  Scenario: async with Timer when no current asyncio task raises RuntimeError
+    Given an event loop where code runs with no current asyncio task
+    When I use async with Timer from a callback on that loop
+    Then a RuntimeError is raised
+    And the error message is "no current asyncio task"

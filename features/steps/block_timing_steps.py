@@ -40,13 +40,44 @@ def step_given_thread_sleep(context: Context, duration_ns: int) -> None:
     context.thread_sleep_ns = duration_ns
 
 
+@given("a Timer shared by both tasks")
+def step_given_shared_timer(context: Context) -> None:
+    """Create a Timer instance shared by task A and task B."""
+    context.shared_timer = timerun.Timer()
+
+
+@given("task {which} runs for {duration_ns:n} nanoseconds")
+def step_given_task_duration(
+    context: Context,
+    which: str,
+    duration_ns: int,
+) -> None:
+    """Define async function for the given task using the shared timer."""
+    shared_timer = context.shared_timer
+    duration_sec = duration_ns / 1e9
+
+    async def run_task() -> timerun.Measurement:
+        async with shared_timer as m:
+            await asyncio.sleep(duration_sec)
+        return m
+
+    setattr(context, f"task_{which.lower()}_ns", duration_ns)
+    setattr(context, f"task_{which.lower()}", run_task)
+
+
+@given("task A starts before task B")
+def step_given_task_a_starts_before_b(context: Context) -> None:
+    """Store start order: A then B."""
+    context.task_a_starts_before_b = True
+
+
 @given("the {which} block duration is {duration_ns:n} nanoseconds")
 def step_given_block_duration(
     context: Context,
     which: str,
     duration_ns: int,
 ) -> None:
-    """Store block duration for which block."""
+    """Store block duration for the named block (first, second, etc.)."""
     setattr(context, f"{which}_block_ns", duration_ns)
 
 
@@ -65,7 +96,7 @@ def step_given_callback_records_invocations(
     context: Context,
     callback_kind: str,
 ) -> None:
-    """Store list and callback that records the measurement passed to it."""
+    """Store list and callback that records each measurement."""
     # List and callback that appends each measurement.
     invocations: list[timerun.Measurement] = []
 
@@ -77,11 +108,19 @@ def step_given_callback_records_invocations(
     setattr(context, f"{callback_kind}_callback", record_invocation)
 
 
+@given(
+    "an event loop where code runs with no current asyncio task",
+)
+def step_given_event_loop_no_current_task(context: Context) -> None:
+    """Store event loop with no current task (runs from When callback)."""
+    context.loop = asyncio.new_event_loop()
+
+
 # --- When ---
 
 
 @when("I measure the operation using `with`")
-def step_measure_operation_using_with(context: Context) -> None:
+def step_measure_sync_operation_using_with(context: Context) -> None:
     """Measure with Timer(); sleep or spin per operation_kind."""
     with timerun.Timer() as context.measurement:
         if context.operation_kind == "CPU-bound":
@@ -97,7 +136,7 @@ def step_measure_operation_using_with(context: Context) -> None:
 
 
 @when("I measure the async operation using `async with`")
-def step_measure_async_using_async_with(context: Context) -> None:
+def step_measure_async_operation_using_async_with(context: Context) -> None:
     """Measure async with Timer(); asyncio.sleep."""
 
     async def run() -> timerun.Measurement:
@@ -158,6 +197,24 @@ def step_measure_nested_blocks(context: Context) -> None:
             time.sleep(context.inner_block_ns / 1e9)
 
 
+@when("I run both tasks concurrently with the same Timer")
+def step_run_both_tasks_concurrently(context: Context) -> None:
+    """Run tasks concurrently, store results as first and second."""
+    assert getattr(context, "task_a_starts_before_b", False), (
+        "start order must be given (e.g. task A starts before task B)"
+    )
+
+    async def run_task_a_before_b() -> tuple[
+        timerun.Measurement,
+        timerun.Measurement,
+    ]:
+        return await asyncio.gather(context.task_a(), context.task_b())
+
+    results = asyncio.run(run_task_a_before_b())
+    context.first_measurement = results[0]
+    context.second_measurement = results[1]
+
+
 @when("I measure a code block with that metadata")
 def step_measure_block_with_metadata(context: Context) -> None:
     """Measure with Timer(metadata=...); store result."""
@@ -173,7 +230,7 @@ def step_measure_block_with_callback(
     context: Context,
     callback_kind: str,
 ) -> None:
-    """Measure with Timer(on_start=... or on_end=...); run a trivial block."""
+    """Measure with Timer callback; run trivial block."""
     callback = getattr(context, f"{callback_kind}_callback")
     with timerun.Timer(**{callback_kind: callback}) as context.measurement:
         pass
@@ -217,6 +274,32 @@ def step_exit_without_enter(context: Context) -> None:
         context.exception = e
 
 
+@when("I use async with Timer from a callback on that loop")
+def step_async_with_timer_no_current_task(context: Context) -> None:
+    """Async with Timer from call_soon (no current task); store error."""
+    loop = context.loop
+
+    def callback() -> None:
+        async def use_timer() -> None:
+            async with timerun.Timer():
+                pass
+
+        coro = use_timer()
+        try:
+            coro.send(None)
+        except RuntimeError as e:
+            context.exception = e
+        except StopIteration:
+            pass
+        finally:
+            coro.close()
+        loop.stop()
+
+    loop.call_soon(callback)
+    loop.run_forever()
+    loop.close()
+
+
 # --- Then ---
 
 
@@ -228,7 +311,7 @@ def step_measurement_wall_time_at_least(
     context: Context,
     expected_ns: int,
 ) -> None:
-    """Assert wall time >= expected; used for CPU-bound scenario."""
+    """Assert wall time >= expected."""
     # Require wall_time and get duration.
     assert context.measurement.wall_time is not None
     duration = context.measurement.wall_time.duration
@@ -266,7 +349,7 @@ def step_second_measurement_metadata_no_key(
 
 @then("the measurements are from different threads")
 def step_measurements_from_different_threads(context: Context) -> None:
-    """Assert N distinct measurements."""
+    """Assert thread_count distinct measurements."""
     # Required context validation.
     measurements = context.thread_measurements
 
@@ -291,7 +374,7 @@ def step_block_yielded_measurement(context: Context) -> None:
 
 @then("the {callback_kind} callback was called once")
 def step_callback_called_once(context: Context, callback_kind: str) -> None:
-    """Assert the callback was invoked exactly once."""
+    """Assert callback was invoked exactly once."""
     invocations = getattr(context, f"{callback_kind}_invocations")
     assert len(invocations) == 1, (
         f"expected the {callback_kind} callback to be called once, "
@@ -307,6 +390,6 @@ def step_callback_called_with_the_measurement(
     context: Context,
     callback_kind: str,
 ) -> None:
-    """Assert callback's argument is the same instance the Timer yielded."""
+    """Assert callback received the same measurement instance."""
     arg = getattr(context, f"{callback_kind}_invocations")[0]
     assert arg is context.measurement
