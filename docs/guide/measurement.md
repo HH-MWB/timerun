@@ -16,11 +16,11 @@ A **Measurement** represents a single timing result: wall-clock time, CPU time, 
 
 ## When wall_time and cpu_time are set
 
-When the Timer creates the Measurement (in `__enter__` or at the start of a decorated call), `wall_time` and `cpu_time` are `None`. They are assigned when the block exits or the call completes. Thus, in `on_start` the measurement does not yet have timings; in `on_end`, both are set.
+When the Timer creates the Measurement (at the start of a `with` block or a decorated call), `wall_time` and `cpu_time` are `None`. They are assigned when the block exits or the call completes. So in `on_start` the measurement does not yet have timings; in `on_end`, both are set.
 
 ## Metadata
 
-Metadata is mutable. Initial metadata is supplied via `Timer(metadata={...})`; each measurement receives a deep copy at enter time. You can mutate `measurement.metadata` inside the timed block or in `on_start` to add or change keys for that run only. See [Metadata](metadata.md) for copying and scope rules.
+Metadata is mutable. Initial metadata is supplied via `Timer(metadata={...})`; each measurement receives a deep copy when the timed block or call begins. You can mutate `measurement.metadata` inside the timed block or in `on_start` to add or change keys for that run only. See [Metadata](metadata.md) for copying and scope rules.
 
 ## Example
 

@@ -13,11 +13,11 @@ For applied patterns (e.g. attaching a request id in `on_start`, exporting to Op
 ## Core types
 
 - **[TimeSpan](timespan.md)** — Immutable time interval: attributes, `timedelta`, comparison, and validation.
-- **[Measurement](measurement.md)** — A single timing result: `wall_time`, `cpu_time`, and `metadata`; when values are set and how to use them.
+- **[Measurement](measurement.md)** — A single run’s result: `wall_time`, `cpu_time`, and `metadata`.
 
 ## Timer
 
-- **[Timer (overview)](timer.md)** — Constructor parameters and the two modes (context manager and decorator); what each mode yields.
+- **[Timer (overview)](timer.md)** — How wall and CPU time are recorded, constructor parameters, context manager and decorator usage, and callbacks.
 - **[Measure a block](measure-block.md)** — Using `with Timer()` and `async with`; one measurement per block; nested, sequential, and multi-threaded use; exceptions and invalid use.
 - **[Measure functions](measure-functions.md)** — Using `@Timer()` with sync/async functions and generators; the `measurements` deque and `maxlen`; thread safety.
 - **[Metadata](metadata.md)** — Supplying and copying metadata; per-measurement mutation; isolation between runs.

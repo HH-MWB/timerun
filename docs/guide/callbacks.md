@@ -4,7 +4,7 @@ title: Callbacks
 
 # Callbacks
 
-The optional **`on_start`** and **`on_end`** callbacks are invoked once per measurement. Both receive the same **Measurement** instance that the Timer yields or appends for that run.
+The optional **`on_start`** and **`on_end`** callbacks are invoked once per measurement. Both receive the same **Measurement** instance that the Timer creates for that run.
 
 ## When they are invoked and what they receive
 

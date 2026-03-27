@@ -28,8 +28,8 @@ Use `@Timer(maxlen=10)` to limit how many measurements are retained; the oldest 
 |------|----------|
 | Sync function | One measurement per call. |
 | Async function | One measurement per call (covers the full `await` of the call). |
-| Sync generator | One measurement per **full consumption** of the generator (from first `next` until exhaustion or close). |
-| Async generator | One measurement per **full consumption** of the async generator. |
+| Sync generator | One measurement per **full consumption** of the generator (from the first iteration until the generator is exhausted or closed). |
+| Async generator | One measurement per **full consumption** of the async generator (same as sync: from first iteration until exhausted or closed). |
 
 For generators, a single measurement covers the entire iteration, not each yielded value.
 
@@ -39,7 +39,7 @@ The wrapped callable has a `measurements` attribute: a `deque` of `Measurement` 
 
 ## Thread safety
 
-Concurrent calls from multiple threads each produce one measurement. Appends to `measurements` are thread-safe; for example, two threads calling the same timed function yield two measurements.
+Concurrent calls from multiple threads each produce one measurement. Appends to `measurements` are thread-safe; for example, two threads calling the same timed function produce two measurements.
 
 ## Exceptions
 

@@ -60,6 +60,11 @@ class TimeSpan:
         converted to whole microseconds (``duration // 1000``) to match
         timedelta's resolution.
 
+    Raises
+    ------
+    ValueError
+        If ``end < start``.
+
     Notes
     -----
     ``start`` and ``end`` use ``field(compare=False)``, so two spans with
@@ -72,7 +77,7 @@ class TimeSpan:
     end: int = field(compare=False)
 
     def __post_init__(self) -> None:
-        """Set duration to end minus start (nanoseconds)."""
+        """Validate end >= start, then set duration (nanoseconds)."""
         if self.end < self.start:
             msg = "end must be >= start"
             raise ValueError(msg)
@@ -86,10 +91,10 @@ class TimeSpan:
 
 @dataclass
 class Measurement:
-    """A measurement collection: wall time, CPU time, and optional metadata.
+    """A single measurement record: wall time, CPU time, and optional metadata.
 
-    Stores one measurement only. Use this to collect the result of a single
-    timing run: wall-clock time, CPU time, and any user-defined metadata.
+    Use this to collect the result of a single timing run: wall-clock time,
+    CPU time, and any user-defined metadata.
 
     When created by Timer (context manager or decorator), ``wall_time`` and
     ``cpu_time`` are ``None`` until the block exits, then they are set to the
