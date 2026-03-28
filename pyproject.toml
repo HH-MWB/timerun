@@ -33,10 +33,6 @@ classifiers = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
-dev = ["behave", "coverage", "pip-audit"]
-docs = ["zensical"]
-
 [project.urls]
 Homepage = "https://github.com/HH-MWB/timerun"
 "Bug Reports" = "https://github.com/HH-MWB/timerun/issues"
