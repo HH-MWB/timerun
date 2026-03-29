@@ -1,63 +1,83 @@
 # Zensical config for TimeRun (https://hh-mwb.github.io/timerun/)
 
 [project]
-# Identity
 site_name = "TimeRun"
 site_description = "Python package for time measurement — wall-clock and CPU time, zero dependencies."
 site_url = "https://hh-mwb.github.io/timerun/"
-
-# Repository
 repo_url = "https://github.com/HH-MWB/timerun"
-
-# Navigation
 nav = [
-  { "Home" = "index.md" },
-  { "About" = "about/index.md" },
-  { "Reference" = [
+  { "Quickstart" = "quickstart/index.md" },
+  { "Overview" = "overview/index.md" },
+  { "Guide" = [
     "guide/index.md",
+    { "Timer overview" = "guide/timer.md" },
+    { "Measure a block" = "guide/measure-block.md" },
+    { "Measure function calls" = "guide/measure-functions.md" },
+    { "Metadata" = "guide/metadata.md" },
+    { "Callbacks" = "guide/callbacks.md" },
     { "TimeSpan" = "guide/timespan.md" },
     { "Measurement" = "guide/measurement.md" },
-    { "Timer (overview)" = "guide/timer.md" },
-    { "Measure a block" = "guide/measure-block.md" },
-    { "Measure functions" = "guide/measure-functions.md" },
-    { "Metadata" = "guide/metadata.md" },
-    { "Callbacks" = "guide/callbacks.md" }
   ]},
-  { "Recipes" = [
-    "recipes/index.md",
-    { "Use metadata effectively" = "recipes/metadata.md" },
-    { "Share results" = "recipes/share-results.md" },
-    { "Analyze results" = "recipes/analyze-results.md" }
-  ]}
+  { "Cookbook" = [
+    "cookbook/index.md",
+    { "Use metadata effectively" = "cookbook/metadata.md" },
+    { "Share results" = "cookbook/share-results.md" },
+    { "Time web requests" = "cookbook/web-framework.md" },
+    { "Analyze results" = "cookbook/analyze-results.md" },
+  ]},
 ]
+
+# -- Theme -------------------------------------------------------------------
 
 [project.theme]
 features = [
+  "content.code.annotate",
   "content.code.copy",
+  "content.tabs.link",
+  "navigation.footer",
   "navigation.instant",
-  "navigation.tabs",
   "navigation.sections",
+  "navigation.tabs",
   "navigation.top",
-  "search.highlight"
+  "search.highlight",
 ]
-
-# Light / dark / auto (follow system) toggle
-[[project.theme.palette]]
-media = "(prefers-color-scheme)"
-toggle.icon = "lucide/sun-moon"
-toggle.name = "Follow system"
-
-[[project.theme.palette]]
-media = "(prefers-color-scheme: light)"
-scheme = "default"
-toggle.icon = "lucide/sun"
-toggle.name = "Light mode"
-
-[[project.theme.palette]]
-media = "(prefers-color-scheme: dark)"
-scheme = "slate"
-toggle.icon = "lucide/moon"
-toggle.name = "Dark mode"
 
 [project.theme.icon]
 repo = "fontawesome/brands/github"
+
+# Color scheme: auto / light / dark
+[[project.theme.palette]]
+media    = "(prefers-color-scheme)"
+toggle   = { icon = "lucide/sun-moon", name = "Follow system" }
+
+[[project.theme.palette]]
+media    = "(prefers-color-scheme: light)"
+scheme   = "default"
+toggle   = { icon = "lucide/sun", name = "Light mode" }
+
+[[project.theme.palette]]
+media    = "(prefers-color-scheme: dark)"
+scheme   = "slate"
+toggle   = { icon = "lucide/moon", name = "Dark mode" }
+
+# -- Markdown extensions ------------------------------------------------------
+
+[project.markdown_extensions]
+admonition = {}
+
+[project.markdown_extensions.pymdownx]
+details      = {}
+inlinehilite = {}
+
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums  = true
+line_spans       = "__span"
+pygments_lang_class = true
+
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true

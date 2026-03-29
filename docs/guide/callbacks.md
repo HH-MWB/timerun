@@ -17,7 +17,9 @@ Use `on_start` to add to `metadata` (e.g. from context variables). Use `on_end` 
 
 ## Synchronous only
 
-Callbacks are **synchronous only**. They are invoked on the same thread and must return before the Timer continues. To integrate with asynchronous exporters (e.g. OpenTelemetry), schedule work from the callback (e.g. `asyncio.create_task(export(m))` in an async context, or use a thread or queue).
+!!! warning "Callbacks must not block on async I/O"
+
+    Callbacks are **synchronous only**. They run on the same thread and must return before the Timer continues. To integrate with asynchronous exporters (e.g. OpenTelemetry), schedule work from the callback (e.g. `asyncio.create_task(export(m))` in an async context, or use a thread or queue).
 
 ## Example
 
@@ -28,6 +30,4 @@ with Timer(on_end=lambda m: print(m.wall_time.timedelta)):
     pass  # code block to be measured
 ```
 
-For applied patterns (logging, files, OpenTelemetry), see [Share results](../recipes/share-results.md).
-
-**Back to:** [Reference](index.md)
+For applied patterns (logging, files, OpenTelemetry), see [Share results](../cookbook/share-results.md).

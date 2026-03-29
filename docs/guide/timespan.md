@@ -36,5 +36,3 @@ span.timedelta  # datetime.timedelta(microseconds=1000)
 # Comparison by duration only
 TimeSpan(start=0, end=100) == TimeSpan(start=200, end=300)  # True (same duration)
 ```
-
-**Next:** [Measurement](measurement.md)

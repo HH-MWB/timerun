@@ -1,8 +1,8 @@
 ---
-title: Timer (overview)
+title: Timer overview
 ---
 
-# Timer (overview)
+# Timer overview
 
 **Timer** is the main entry point. It measures execution and records wall-clock and CPU time per run. It operates in two modes: as a **context manager** (wraps a block of code in a `with` statement to time it automatically) or as a **decorator** (wraps a function with `@Timer()` to time every call). Both modes support synchronous and asynchronous use; the decorator also supports sync and async generators.
 
@@ -10,7 +10,11 @@ title: Timer (overview)
 
 `Timer` samples clocks when entering and exiting the timed region (Python's `__enter__` / `__exit__` hooks, called automatically by the `with` statement). The [Measurement](measurement.md) fields `wall_time` and `cpu_time` are built from those samples as [`TimeSpan`](timespan.md) values.
 
-`wall_time` and `cpu_time` are the intervals between clock samples taken when entering the timed region and when exiting it. Creating the `Measurement`, copying metadata, and running `on_start` (if any) all happen before the first sample, so they are outside the span. The span ends at the start of `__exit__`, before the stack is popped and `TimeSpan` values are assigned; `on_end` runs after that. Some context-manager and interpreter overhead right after the first sample and right before the last is included in the reported times.
+`wall_time` and `cpu_time` are the intervals between clock samples taken when entering the timed region and when exiting it. Creating the `Measurement`, copying metadata, and running `on_start` (if any) all happen before the first sample, so they are outside the span. The span ends at the start of `__exit__`, before the stack is popped and `TimeSpan` values are assigned; `on_end` runs after that. A small amount of context-manager and interpreter work right after the first sample and right before the last sample is included in what you see.
+
+!!! note "Sampling order"
+
+    On exit, CPU time is sampled before wall time, so `wall_time` can be slightly larger than `cpu_time` even with little I/O or scheduling.
 
 `wall_time` uses `time.perf_counter_ns()` (monotonic elapsed wall time — counts all real time including waiting). `cpu_time` uses `time.process_time_ns()` (total CPU time of the current process — only counts time the processor spent running your code, not time spent waiting on I/O or sleep). Nested use of the same `Timer` instance stacks measurements: each level has its own `Measurement`, and inner wall time falls inside outer wall time when nested.
 
@@ -48,10 +52,8 @@ Use `with Timer() as m:` (sync) or `async with Timer() as m:` (async). On block 
 
 ## Decorator mode
 
-Apply `@Timer()` (or `@Timer(metadata={...}, maxlen=100)` etc.) to a function or generator. Each call produces one `Measurement`, appended to the wrapped callable’s `measurements` deque. Supported callables include sync and async functions and sync and async generators (one measurement per call, or per full consumption for generators). See [Measure functions](measure-functions.md) for `maxlen` and thread safety.
+Apply `@Timer()` (or `@Timer(metadata={...}, maxlen=100)` etc.) to a function or generator. Each call produces one `Measurement`, appended to the wrapped callable’s `measurements` deque. Supported callables include sync and async functions and sync and async generators (one measurement per call, or per full consumption for generators). See [Measure function calls](measure-functions.md) for `maxlen` and thread safety.
 
 ## Callbacks
 
-Callbacks are **synchronous only**. To integrate with asynchronous exporters (e.g. OpenTelemetry), schedule work from the callback (e.g. `asyncio.create_task(export(m))` in an async context, or use a thread or queue). See [Callbacks](callbacks.md) for when `on_start` and `on_end` are invoked and what they receive.
-
-**Next:** [Measure a block](measure-block.md)
+`on_start` and `on_end` are synchronous-only callbacks. See [Callbacks](callbacks.md) for invocation timing, what they receive, and async integration.

@@ -1,3 +1,7 @@
+---
+title: Analyze results
+---
+
 # Analyze results
 
 **Problem:** You have many measurements (e.g. from repeated runs or a decorator's `measurements` deque) and want to summarize or compare — mean, variance, confidence intervals.
@@ -27,7 +31,7 @@ measurements = list(my_func.measurements)
 
 ## What to extract
 
-Each measurement has **wall time** and **CPU time**; use the one that matches your question (e.g. wall for latency, CPU for compute-bound work). Use `wall_time.duration` (nanoseconds, int) or `wall_time.timedelta` for float seconds. You can also use **metadata** to group or filter before computing stats (e.g. by `run_id`, `stage`) so you get per-group summaries.
+Each measurement has **wall time** and **CPU time**; use the one that matches your question (e.g. wall for latency, CPU for compute-bound work). Use `wall_time.duration` (nanoseconds, int) or `wall_time.timedelta.total_seconds()` for float seconds. You can also use **metadata** to group or filter before computing stats (e.g. by `run_id`, `stage`) so you get per-group summaries.
 
 ```python
 durations_ns = [m.wall_time.duration for m in measurements]
@@ -107,6 +111,4 @@ plt.show()
 
 This plots the mean as a point with an error bar spanning the confidence interval. For more on confidence intervals and benchmarking, see your preferred stats or benchmarking reference.
 
-**Back to:** [Recipes](index.md)
-
-**See also:** For the `measurements` deque and `maxlen`, see [Measure functions](../guide/measure-functions.md). For collecting in `on_end`, see [Callbacks](../guide/callbacks.md).
+**See also:** [Measure function calls](../guide/measure-functions.md) for the `measurements` deque and `maxlen`. [Callbacks](../guide/callbacks.md) for collecting measurements in `on_end`.
