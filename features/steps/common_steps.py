@@ -15,8 +15,8 @@ from behave import given, then
 if TYPE_CHECKING:
     from behave.runner import Context
 
-# Buffer: expected_ns <= duration <= expected_ns + BUFFER_NS (10 ms).
-BUFFER_NS = 10_000_000
+# Buffer: expected_ns <= duration <= expected_ns + BUFFER_NS (5 ms).
+BUFFER_NS = 5_000_000
 
 # --- Helpers ---
 
