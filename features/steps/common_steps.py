@@ -1,8 +1,8 @@
 """Step definitions shared by more than one feature.
 
 Rule: a step belongs here only if its Gherkin text is used in multiple feature
-files (e.g. block_timing.feature and function_timing.feature). Steps used by
-a single feature live in that feature's step file (e.g. block_timing_steps.py).
+files (e.g. timer_basics.feature and timer_metadata.feature). Steps used by
+a single feature live in that feature's step file (e.g. timer_basics_steps.py).
 """
 
 from __future__ import annotations
@@ -31,10 +31,20 @@ def _measurement(context: Context, which: str | None) -> object:
 # --- Given ---
 
 
-@given('metadata run_id "{run_id}" and tag "{tag}"')
-def step_given_metadata(context: Context, run_id: str, tag: str) -> None:
-    """Store metadata for Timer."""
-    context.metadata = {"run_id": run_id, "tag": tag}
+@given(
+    "a {kind} function that sleeps for around {duration_ns:n} nanoseconds",
+)
+@given(
+    "an {kind} function that sleeps for around {duration_ns:n} nanoseconds",
+)
+def step_given_func_sleep(
+    context: Context,
+    kind: str,
+    duration_ns: int,
+) -> None:
+    """Store func kind and duration."""
+    context.func_duration_ns = duration_ns
+    context.func_kind = kind
 
 
 # --- Then ---
@@ -60,16 +70,6 @@ def step_error_message_is(context: Context, message: str) -> None:
 
     # Message must match.
     assert str(context.exception) == message
-
-
-@then("an exception was propagated to the caller")
-def step_exception_propagated(context: Context) -> None:
-    """Assert ValueError was caught."""
-    # Required: an exception was stored.
-    assert hasattr(context, "exception")
-
-    # Must be ValueError.
-    assert isinstance(context.exception, ValueError)
 
 
 @then(
@@ -100,24 +100,6 @@ def step_wall_time_within_buffer(
     )
 
 
-@then(
-    "the measurement's CPU time duration is within the configured buffer of "
-    "{expected_ns:n} nanoseconds",
-)
-def step_cpu_time_within_buffer(context: Context, expected_ns: int) -> None:
-    """Assert CPU time in buffer."""
-    # Resolve duration and buffer bounds.
-    assert context.measurement.cpu_time is not None
-
-    # Duration must lie in [min_ns, max_ns].
-    duration = context.measurement.cpu_time.duration
-    min_ns = max(0, expected_ns - 1_000_000)
-    max_ns = expected_ns + BUFFER_NS
-    assert min_ns <= duration <= max_ns, (
-        f"CPU time {duration} not in [{min_ns}, {max_ns}] (buffer={BUFFER_NS})"
-    )
-
-
 @then('the measurement\'s metadata key "{key}" is "{value}"')
 @then('the {which} measurement\'s metadata key "{key}" is "{value}"')
 def step_measurement_metadata_key_is(
@@ -129,3 +111,13 @@ def step_measurement_metadata_key_is(
     """Assert metadata[key] is value (default or first/second/outer/inner)."""
     measurement = _measurement(context, which)
     assert measurement.metadata[key] == value
+
+
+@then("the decorated function's measurements deque has {n:n} entry")
+@then("the decorated function's measurements deque has {n:n} entries")
+def step_then_measurements_count(context: Context, n: int) -> None:
+    """Assert measurements count is n."""
+    func = context.decorated_function
+    assert len(func.measurements) == n, (
+        f"expected {n} measurements, got {len(func.measurements)}"
+    )
