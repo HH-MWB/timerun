@@ -1,17 +1,56 @@
-"""TimeRun is a Python library for time measurements."""
+"""Structured timing for Python: wall-clock and CPU time per block or call.
 
+TimeRun is a single-file package with no dependencies beyond the standard
+library. It records wall-clock time (``perf_counter_ns``) and CPU time
+(``process_time_ns``) for code blocks and function calls, producing one
+:class:`Measurement` per run. Each measurement carries two
+:class:`TimeSpan` objects and optional user-defined metadata.
+
+Use :class:`Timer` as a context manager to time a block::
+
+    with Timer() as m:
+        ...
+    print(m.wall_time.timedelta)
+
+Or as a decorator to time every call::
+
+    @Timer()
+    def func():
+        ...
+    func()
+    print(func.measurements[-1].wall_time.timedelta)
+
+Measurements support optional ``metadata`` (deep-copied per run) and
+``on_start`` / ``on_end`` callbacks. Timer is reusable: thread-safe for
+sync blocks, and task-safe for concurrent asyncio tasks.
+
+Public API
+----------
+TimeSpan
+    Immutable nanosecond interval (``duration``, ``start``, ``end``,
+    ``timedelta``).
+Measurement
+    Wall time, CPU time, and metadata for a single timing run.
+Timer
+    Context manager and decorator that records measurements.
+
+"""
+
+from asyncio import current_task
 from collections import deque
 from collections.abc import AsyncGenerator, Callable, Generator
+from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import timedelta
+from enum import Enum
 from functools import wraps
 from inspect import (
     isasyncgenfunction,
     iscoroutinefunction,
     isgeneratorfunction,
 )
-from threading import Lock, local
+from threading import Lock, current_thread
 from time import perf_counter_ns, process_time_ns
 from types import TracebackType
 from typing import (
@@ -22,7 +61,7 @@ from typing import (
     cast,
 )
 
-__version__: str = "0.6.1"
+__version__: str = "0.6.2"
 
 __all__ = [
     "Measurement",
@@ -57,6 +96,11 @@ class TimeSpan:
         converted to whole microseconds (``duration // 1000``) to match
         timedelta's resolution.
 
+    Raises
+    ------
+    ValueError
+        If ``end < start``.
+
     Notes
     -----
     ``start`` and ``end`` use ``field(compare=False)``, so two spans with
@@ -69,7 +113,7 @@ class TimeSpan:
     end: int = field(compare=False)
 
     def __post_init__(self) -> None:
-        """Set duration to end minus start (nanoseconds)."""
+        """Validate end >= start, then set duration (nanoseconds)."""
         if self.end < self.start:
             msg = "end must be >= start"
             raise ValueError(msg)
@@ -83,10 +127,10 @@ class TimeSpan:
 
 @dataclass
 class Measurement:
-    """A measurement collection: wall time, CPU time, and optional metadata.
+    """A single measurement record: wall time, CPU time, and optional metadata.
 
-    Stores one measurement only. Use this to collect the result of a single
-    timing run: wall-clock time, CPU time, and any user-defined metadata.
+    Use this to collect the result of a single timing run: wall-clock time,
+    CPU time, and any user-defined metadata.
 
     When created by Timer (context manager or decorator), ``wall_time`` and
     ``cpu_time`` are ``None`` until the block exits, then they are set to the
@@ -107,6 +151,13 @@ class Measurement:
     wall_time: TimeSpan | None = None
     cpu_time: TimeSpan | None = None
     metadata: dict[str, object] = field(default_factory=dict)
+
+
+class _ContextMode(Enum):
+    """Sync vs async execution context for timer stack ownership."""
+
+    SYNC = "sync"
+    ASYNC = "async"
 
 
 class _TimedCallable(Protocol[P, R_co]):  # pylint: disable=too-few-public-methods
@@ -149,6 +200,10 @@ class Timer:
 
     Notes
     -----
+    One context variable is used for both sync and async; each thread (sync)
+    or asyncio task (async) has its own stack, so concurrent async tasks
+    sharing one Timer get correct timings regardless of finish order.
+
     Callbacks are synchronous only. For async exporters (e.g. OpenTelemetry),
     schedule work from the callback (e.g. ``asyncio.create_task(export(m))``
     when in an async context, or a thread/queue).
@@ -191,28 +246,113 @@ class Timer:
         maxlen: int | None = None,
     ) -> None:
         """Init with optional metadata, callbacks, and maxlen (decorator)."""
+        # Store base metadata used to seed each new measurement.
         self._metadata = metadata if isinstance(metadata, dict) else {}
+
+        # Register lifecycle callbacks invoked at measurement start/end.
         self._on_start = on_start
         self._on_end = on_end
+
+        # Keep decorator-mode retention policy for wrapped call history.
         self._maxlen = maxlen
-        self._local = local()
 
-    def __enter__(self) -> Measurement:
-        """Start timing; return the measurement record."""
-        # Create measurement with a deep copy of timer metadata.
+        # Create per-instance context-local stack storage for active timings.
+        self._stack_var: ContextVar[
+            tuple[int | None, deque[tuple[Measurement, int, int]]]
+        ] = ContextVar(f"timerun_timer_stack_{id(self)}")
+
+    def _get_context_stack(
+        self,
+        mode: _ContextMode,
+    ) -> deque[tuple[Measurement, int, int]]:
+        """Return the stack for the current execution context.
+
+        "Owner" is the execution identity that owns the stack: thread id in
+        sync mode, task id in async mode. See :class:`_ContextMode`.
+        Binds (owner_id, stack) for this context when the context has no
+        bound stack yet (e.g. first use in this thread/task), so callers
+        always get the stack for this owner (possibly empty).
+
+        Parameters
+        ----------
+        mode : _ContextMode
+            SYNC for thread-local, ASYNC for task-local stack.
+
+        Returns
+        -------
+        deque
+            The stack for this owner.
+
+        Raises
+        ------
+        RuntimeError
+            If mode is ASYNC and there is no current asyncio task.
+
+        """
+        # Resolve owner id for this context (thread or task).
+        if mode is _ContextMode.ASYNC:
+            task = current_task()
+            if task is None:
+                msg = "no current asyncio task"
+                raise RuntimeError(msg)
+            owner_id = id(task)
+        else:
+            owner_id = id(current_thread())
+
+        # Get or bind stack for this context and return it.
+        owner, stack = self._stack_var.get((None, deque()))
+        if owner != owner_id:
+            self._stack_var.set((owner_id, stack))
+        return stack
+
+    def _enter(self, mode: _ContextMode) -> Measurement:
+        """Start a measurement and push it onto the context stack.
+
+        Returns
+        -------
+        Measurement
+            Newly created measurement record for this enter operation.
+
+        """
+        # Create measurement and run on_start callback if set.
         measurement = Measurement(metadata=deepcopy(self._metadata))
-
-        # Notify caller timing started (wall_time/cpu_time still None).
         if self._on_start is not None:
             self._on_start(measurement)
 
-        # Ensure thread-local stack exists and record start timestamps.
-        self._local.stack = getattr(self._local, "stack", deque())
-        self._local.stack.append(
-            (measurement, perf_counter_ns(), process_time_ns()),
-        )
-
+        # Push onto context stack and return.
+        stack = self._get_context_stack(mode)
+        stack.append((measurement, perf_counter_ns(), process_time_ns()))
         return measurement
+
+    def _exit(self, mode: _ContextMode) -> None:
+        """Finalize and pop the latest measurement from the context stack.
+
+        Raises
+        ------
+        RuntimeError
+            If no matching active measurement (e.g. exit without enter).
+
+        """
+        # Capture end timestamps before popping.
+        cpu_end = process_time_ns()
+        wall_end = perf_counter_ns()
+
+        # Pop measurement or raise if no matching enter.
+        stack = self._get_context_stack(mode)
+        if not stack:
+            msg = "__exit__ called without a matching __enter__"
+            raise RuntimeError(msg)
+        measurement, wall_start, cpu_start = stack.pop()
+
+        # Set spans on measurement and run on_end callback if set.
+        measurement.wall_time = TimeSpan(start=wall_start, end=wall_end)
+        measurement.cpu_time = TimeSpan(start=cpu_start, end=cpu_end)
+        if self._on_end is not None:
+            self._on_end(measurement)
+
+    def __enter__(self) -> Measurement:
+        """Start timing; return the measurement record."""
+        return self._enter(_ContextMode.SYNC)
 
     def __exit__(
         self,
@@ -220,40 +360,23 @@ class Timer:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> Literal[False]:
-        """Stop timing; set wall_time and cpu_time on the measurement."""
-        # Capture end timestamps (before popping to pair with __enter__).
-        cpu_end = process_time_ns()
-        wall_end = perf_counter_ns()
-
-        # Pop (measurement, wall_start, cpu_start) from this thread.
-        try:
-            measurement, wall_start, cpu_start = self._local.stack.pop()
-        except (AttributeError, IndexError) as e:
-            msg = "__exit__ called without a matching __enter__"
-            raise RuntimeError(msg) from e
-
-        # Attach elapsed spans to the measurement.
-        measurement.wall_time = TimeSpan(start=wall_start, end=wall_end)
-        measurement.cpu_time = TimeSpan(start=cpu_start, end=cpu_end)
-
-        # Notify caller that timing has ended (measurement is fully populated).
-        if self._on_end is not None:
-            self._on_end(measurement)
-
+        """Stop timing; update the measurement."""
+        self._exit(_ContextMode.SYNC)
         return False
 
     async def __aenter__(self) -> Measurement:
-        """Support ``async with`` by delegating to sync __enter__."""
-        return self.__enter__()
+        """Start timing (async); return the measurement record."""
+        return self._enter(_ContextMode.ASYNC)
 
     async def __aexit__(
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> bool:
-        """Support ``async with`` by delegating to sync __exit__."""
-        return self.__exit__(exc_type, exc_val, exc_tb)
+    ) -> Literal[False]:
+        """Stop timing (async); update the measurement."""
+        self._exit(_ContextMode.ASYNC)
+        return False
 
     def __call__(  # noqa: C901
         self,
@@ -274,6 +397,7 @@ class Timer:
         linter warning is a false positive.
 
         """
+        # Shared state and helper for all wrapper branches.
         measurements: deque[Measurement] = deque(maxlen=self._maxlen)
         lock = Lock()
 
@@ -281,6 +405,7 @@ class Timer:
             with lock:
                 measurements.append(m)
 
+        # Build wrapper by callable type: async gen, coroutine, sync gen, sync.
         if isasyncgenfunction(f):
 
             @wraps(f)
@@ -299,7 +424,7 @@ class Timer:
         elif iscoroutinefunction(f):
 
             @wraps(f)
-            async def wrapper(  # type: ignore[return]
+            async def wrapper(
                 *args: P.args,
                 **kwargs: P.kwargs,
             ) -> R:
@@ -333,6 +458,7 @@ class Timer:
                 finally:
                     append_measurement(m)  # pylint: disable=used-before-assignment
 
+        # Attach measurements to wrapper and return.
         wrapped = cast(
             "_TimedCallable[P, R] | "
             "_TimedCallable[P, AsyncGenerator[Y, None]] | "

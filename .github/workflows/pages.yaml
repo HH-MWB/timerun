@@ -30,10 +30,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Create venv and install docs dependencies
+      - name: Install docs dependencies
         run: |
           python -m venv .venv
-          .venv/bin/pip install -e ".[docs]"
+          .venv/bin/pip install zensical
 
       - name: Build site
         run: .venv/bin/zensical build

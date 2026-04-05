@@ -4,23 +4,19 @@ title: Measurement
 
 # Measurement
 
-A **Measurement** represents a single timing result: wall-clock time, CPU time, and optional metadata. The Timer creates one Measurement per block or function call. You obtain it from the context manager (`with Timer() as m`) or from the decorator’s `measurements` deque.
+A **Measurement** represents a single timing result: wall-clock time, CPU time, and optional metadata. The Timer creates one Measurement per timed block, or one per call when you use the decorator to time function calls. You obtain it from the context manager (`with Timer() as m`) or from the decorator’s `measurements` deque.
 
 ## Attributes
 
 | Attribute   | Type | Description |
 |------------|------|-------------|
-| `wall_time` | `TimeSpan \| None` | Wall-clock time for the measurement, or `None` until the block or call exits. |
-| `cpu_time`  | `TimeSpan \| None` | CPU time for the measurement, or `None` until the block or call exits. |
+| `wall_time` | `TimeSpan \| None` | Wall-clock time for the measurement (set on block/call exit; `None` before that, including during `on_start`). |
+| `cpu_time`  | `TimeSpan \| None` | CPU time for the measurement (set on block/call exit; `None` before that, including during `on_start`). |
 | `metadata`  | `dict[str, object]` | Key-value metadata (e.g. run id, tags). Defaults to `{}`. Mutate in place to add or change entries for this measurement. |
-
-## When wall_time and cpu_time are set
-
-When the Timer creates the Measurement (in `__enter__` or at the start of a decorated call), `wall_time` and `cpu_time` are `None`. They are assigned when the block exits or the call completes. Thus, in `on_start` the measurement does not yet have timings; in `on_end`, both are set.
 
 ## Metadata
 
-Metadata is mutable. Initial metadata is supplied via `Timer(metadata={...})`; each measurement receives a deep copy at enter time. You can mutate `measurement.metadata` inside the timed block or in `on_start` to add or change keys for that run only. See [Metadata](metadata.md) for copying and scope rules.
+`metadata` is a mutable dict scoped to this measurement. See [Metadata](metadata.md) for copy semantics, isolation, and mutation patterns.
 
 ## Example
 
@@ -38,5 +34,3 @@ m.metadata        # {"run_id": "exp-1"} (your copy; mutable)
 ```
 
 You can also construct a Measurement manually (e.g. for tests) by passing `wall_time`, `cpu_time`, and optional `metadata` to the constructor.
-
-**Next:** [Timer (overview)](timer.md)

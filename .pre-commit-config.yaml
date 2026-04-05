@@ -15,6 +15,9 @@ repos:
           - --fix=lf
       - id: check-yaml
       - id: check-toml
+      - id: detect-private-key
+      - id: requirements-txt-fixer
+        files: ^requirements-dev\.txt$
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
@@ -22,10 +25,15 @@ repos:
       - id: yamllint
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.5
+    rev: v0.15.8
     hooks:
       - id: ruff-format
       - id: ruff-check
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.2
+    hooks:
+      - id: codespell
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
@@ -49,7 +57,7 @@ repos:
         additional_dependencies: ["bandit[toml]"]
 
   - repo: https://github.com/semgrep/pre-commit
-    rev: v1.154.0
+    rev: v1.156.0
     hooks:
       - id: semgrep
         args: ["--config", "p/python", "--error"]

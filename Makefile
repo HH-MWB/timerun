@@ -74,7 +74,7 @@ init: ## Set up dev env. Prompts for Python, or: make init PYTHON=python3.10
 	fi; \
 	if [ ! -d "$(VENV_DIR)" ]; then $$py -m venv "$(VENV_DIR)" >/dev/null; fi
 	@$(VENV_BIN)/pip install --upgrade pip >/dev/null
-	@$(VENV_BIN)/pip install -e ".[dev,docs]" >/dev/null
+	@$(VENV_BIN)/pip install -e . -r requirements-dev.txt zensical >/dev/null
 	@$(VENV_BIN)/pip install pre-commit >/dev/null
 	@$(VENV_BIN)/pre-commit install >/dev/null
 
@@ -118,7 +118,7 @@ test-verbose: check-venv ## Run BDD tests with full scenario/step output (for de
 	@$(VENV_BIN)/coverage report --show-missing
 
 # ============================================================================
-# Docs Targets (Zensical; docs deps installed by make init)
+# Docs Targets
 # ============================================================================
 
 ##@ Docs

@@ -4,7 +4,7 @@
   </a>
 </p>
 
-<p align="center"><strong>TimeRun</strong> — <em>Python package for time measurement.</em></p>
+<p align="center"><strong>TimeRun</strong> — <em>Structured timing for Python.</em></p>
 
 <p align="center">
     <a href="https://pypi.org/project/timerun/"><img alt="Version" src="https://img.shields.io/pypi/v/timerun.svg"></a>
@@ -14,9 +14,9 @@
     <a href="https://pepy.tech/project/timerun"><img alt="Total Downloads" src="https://static.pepy.tech/badge/timerun"></a>
 </p>
 
-TimeRun is a **single-file** Python package with **no dependencies** beyond the standard library. It records **wall-clock time** and **CPU time** for code blocks or function calls and supports optional **metadata** (e.g. run id, tags) per measurement.
+TimeRun is a **single-file** Python package with **no dependencies** beyond the standard library. It records **wall-clock time** and **CPU time** when you measure **a block** or **function calls** (one `Measurement` per block or per call) and supports optional **metadata** (e.g. run id, tags) and **callbacks** (`on_start` / `on_end`) per measurement.
 
-For the full value proposition and positioning, see [Why TimeRun](https://hh-mwb.github.io/timerun/about/) on the docs site.
+For positioning and the full value proposition, see [Overview](https://hh-mwb.github.io/timerun/overview/) on the docs site.
 
 ## Installation
 
@@ -72,9 +72,11 @@ datetime.timedelta(microseconds=8)
 
 *Note: Argument `maxlen` caps how many measurements are kept (e.g. `@Timer(maxlen=10)`). By default the deque is unbounded.*
 
-### Callbacks on Start and End
+### Callbacks
 
-Optional `on_start` and `on_end` callbacks run once per measurement. Both receive the measurement instance (`on_start` before timings are set, `on_end` after). Typical uses are logging, forwarding to OpenTelemetry, or enqueueing to a metrics pipeline.
+Optional `on_start` and `on_end` callbacks run once per measurement. Both receive the `Measurement` instance — `on_start` before timings are set, `on_end` after. For example:
+
+Print elapsed time when a block finishes:
 
 ```python
 >>> from timerun import Timer
@@ -82,6 +84,20 @@ Optional `on_start` and `on_end` callbacks run once per measurement. Both receiv
 ...     pass  # code block to be measured
 ...  
 0:00:00.000008
+```
+
+Attach a trace id before each call starts:
+
+```python
+>>> from uuid import uuid4
+>>> from timerun import Timer
+>>> @Timer(on_start=lambda m: m.metadata.update(trace_id=uuid4().hex))
+... def func():
+...     return
+...  
+>>> func()
+>>> func.measurements[-1].metadata
+{'trace_id': '8aa2c000c98843738a2f0d5d3600d052'}
 ```
 
 ## Contributing

@@ -1,12 +1,16 @@
+---
+title: Share results
+---
+
 # Share results
 
-**Problem:** You need to get measurements out of the process — to a log, a file, OpenTelemetry, or a metrics backend.
+**Problem:** You need to get measurements out of the process — to a log, a file, OpenTelemetry, Prometheus, or another metrics backend.
 
 **Idea:** Use **`on_end`** (and optionally `on_start`) to push each measurement out when the run finishes. The callback receives the `Measurement` with `wall_time`, `cpu_time`, and `metadata` set.
 
 ## Log
 
-```python
+```python hl_lines="16"
 import logging
 from timerun import Timer
 
@@ -61,10 +65,10 @@ from timerun import Timer
 # tracer = get_tracer(__name__)
 
 def on_start(m):
-    m.metadata["span"] = tracer.start_span("timerun")
+    m.metadata["span"] = tracer.start_span("timerun")  # (1)!
 
 def on_end(m):
-    span = m.metadata.get("span")
+    span = m.metadata.get("span")  # (2)!
     if span is None:
         return  # If on_start didn't set a span, skip.
     span.set_attribute("wall_time_ns", m.wall_time.duration)
@@ -72,12 +76,39 @@ def on_end(m):
     for k, v in m.metadata.items():
         if k != "span" and v is not None:
             span.set_attribute(k, str(v))
-    span.end()
+    span.end()  # (3)!
 
 with Timer(on_start=on_start, on_end=on_end):
     do_work()
 ```
 
-**Next:** [Analyze results](analyze-results.md)
+1. Start the span before the timed work runs so nested operations can attach to the same trace context if your tracer supports it.
+2. Retrieve the span object you stashed on the `Measurement`; guard in case `on_start` failed or was skipped.
+3. End the span after attributes are set so duration and metadata are recorded on the same span.
 
-For callback basics, see [Reference: Callbacks](../guide/callbacks.md). For the OpenTelemetry API, see the [OpenTelemetry Python docs](https://opentelemetry.io/docs/languages/python/).
+## Prometheus
+
+Use the [Prometheus Python client](https://github.com/prometheus/client_python) (`pip install prometheus-client`). Register a histogram (or summary) and observe wall-clock seconds in `on_end`:
+
+```python
+from prometheus_client import Histogram
+from timerun import Timer
+
+OPERATION_SECONDS = Histogram(
+    "timerun_operation_seconds",
+    "Wall time for timed operations (seconds)",
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, float("inf")),
+)
+
+
+def observe_wall_time(m):
+    OPERATION_SECONDS.observe(m.wall_time.timedelta.total_seconds())
+
+
+with Timer(on_end=observe_wall_time):
+    do_work()
+```
+
+Expose metrics from your process with `start_http_server` or your framework’s integration so Prometheus can scrape them.
+
+**See also:** [Guide: Callbacks](../guide/callbacks.md) for when callbacks run. For the OpenTelemetry API, see the [OpenTelemetry Python docs](https://opentelemetry.io/docs/languages/python/).

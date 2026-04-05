@@ -33,13 +33,10 @@ classifiers = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
-dev = ["behave", "coverage", "pip-audit"]
-docs = ["zensical"]
-
 [project.urls]
-Homepage = "https://github.com/HH-MWB/timerun"
-"Bug Reports" = "https://github.com/HH-MWB/timerun/issues"
+Homepage = "https://hh-mwb.github.io/timerun/"
+Repository = "https://github.com/HH-MWB/timerun"
+Issues = "https://github.com/HH-MWB/timerun/issues"
 Changelog = "https://github.com/HH-MWB/timerun/releases"
 PyPI = "https://pypi.org/project/timerun"
 

@@ -1,8 +1,8 @@
 ---
-title: About
+title: Overview
 ---
 
-# About
+# Overview
 
 TimeRun gives you **structured, dependency-free timing** (wall + CPU) with optional **metadata and callbacks**, so you can measure any Python code and plug results into your existing **observability stack**. Single file, zero dependencies, standard library only.
 
@@ -22,11 +22,11 @@ Alternatives (manual `time.perf_counter()`, heavy APM agents, or “batteries-in
 
 ## Who it’s for
 
-If that sounds like you, TimeRun is a good fit.
-
 - **Python developers** doing performance tuning, benchmarking, or debugging latency.
 - **Platform / SRE / backend engineers** who need lightweight, library-level timing that can feed into existing observability (logs, metrics, tracing).
 - **Libraries and frameworks** that want optional timing without imposing dependencies on their users.
+
+If that sounds like you, TimeRun is a good fit.
 
 ---
 
@@ -74,8 +74,6 @@ If that sounds like you, TimeRun is a good fit.
 
 ---
 
-## Bottom line
+## Next steps
 
-TimeRun is the **minimal, dependency-free way** to get structured timing (wall + CPU) and optional metadata/callbacks in Python, so you can measure what matters and plug results into your existing observability stack without extra dependencies or lock-in.
-
-[Quick start](../index.md#quick-start) to install and run. [Reference](../guide/index.md) for the API. [Recipes](../recipes/index.md) for real-world patterns.
+[Quickstart](../quickstart/index.md#quick-start) to install and run. [Guide](../guide/index.md) for the API. [Cookbook](../cookbook/index.md) for real-world patterns.

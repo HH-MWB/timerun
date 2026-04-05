@@ -24,10 +24,10 @@ Each measurement receives a **deep copy** of this dictionary at enter time. The 
 - Each block or call receives its **own** copy of the initial metadata. Mutating `measurement.metadata` inside that block (or in `on_start` for that measurement) affects only that measurement.
 - If you reuse the same Timer for a second block, the second block’s measurement starts from a fresh deep copy of the Timer’s initial metadata. It does **not** inherit any keys or changes from the first block.
 
-In summary: metadata is scoped to the measurement. Use it to tag that run; it does not leak to the next run.
+!!! tip "Metadata is per run"
+
+    Metadata is scoped to the measurement. Use it to tag that run; it does not leak to the next run.
 
 ## Mutating metadata
 
-You can mutate `measurement.metadata` inside the timed block or in `on_start` to add or change entries for that run (e.g. request id from context, or a tag set after checking a condition). For patterns such as adding a request id in `on_start`, see [Use metadata effectively](../recipes/metadata.md).
-
-**Next:** [Callbacks](callbacks.md)
+You can mutate `measurement.metadata` inside the timed block or in `on_start` to add or change entries for that run (e.g. request id from context, or a tag set after checking a condition). For patterns such as adding a request id in `on_start`, see [Use metadata effectively](../cookbook/metadata.md).
