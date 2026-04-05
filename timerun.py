@@ -1,4 +1,40 @@
-"""TimeRun is a Python library for time measurements."""
+"""Structured timing for Python: wall-clock and CPU time per block or call.
+
+TimeRun is a single-file package with no dependencies beyond the standard
+library. It records wall-clock time (``perf_counter_ns``) and CPU time
+(``process_time_ns``) for code blocks and function calls, producing one
+:class:`Measurement` per run. Each measurement carries two
+:class:`TimeSpan` objects and optional user-defined metadata.
+
+Use :class:`Timer` as a context manager to time a block::
+
+    with Timer() as m:
+        ...
+    print(m.wall_time.timedelta)
+
+Or as a decorator to time every call::
+
+    @Timer()
+    def func():
+        ...
+    func()
+    print(func.measurements[-1].wall_time.timedelta)
+
+Measurements support optional ``metadata`` (deep-copied per run) and
+``on_start`` / ``on_end`` callbacks. Timer is reusable: thread-safe for
+sync blocks, and task-safe for concurrent asyncio tasks.
+
+Public API
+----------
+TimeSpan
+    Immutable nanosecond interval (``duration``, ``start``, ``end``,
+    ``timedelta``).
+Measurement
+    Wall time, CPU time, and metadata for a single timing run.
+Timer
+    Context manager and decorator that records measurements.
+
+"""
 
 from asyncio import current_task
 from collections import deque
@@ -25,7 +61,7 @@ from typing import (
     cast,
 )
 
-__version__: str = "0.6.1"
+__version__: str = "0.6.2"
 
 __all__ = [
     "Measurement",
