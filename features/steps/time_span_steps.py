@@ -1,13 +1,18 @@
 """Step definitions for the time span feature."""
 
+from __future__ import annotations
+
 import operator
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import parse
 from behave import given, register_type, then, when
-from behave.runner import Context
 
 import timerun
+
+if TYPE_CHECKING:
+    from behave.runner import Context
 
 # Gherkin relation phrases to operator functions for span comparison.
 RELATION_OPERATORS = {

@@ -14,6 +14,8 @@ from features.steps.common_steps import BUFFER_NS
 if TYPE_CHECKING:
     from behave.runner import Context
 
+# Lower-bound slack for CPU time: max(0, expected_ns - CPU_TOLERANCE_NS).
+CPU_TOLERANCE_NS = 500_000  # 0.5 ms
 
 # --- Given ---
 
@@ -175,7 +177,7 @@ def step_cpu_time_within_buffer(context: Context, expected_ns: int) -> None:
 
     # Duration must lie in [min_ns, max_ns].
     duration = context.measurement.cpu_time.duration
-    min_ns = max(0, expected_ns - 500_000)
+    min_ns = max(0, expected_ns - CPU_TOLERANCE_NS)
     max_ns = expected_ns + BUFFER_NS
     assert min_ns <= duration <= max_ns, (
         f"CPU time {duration} not in [{min_ns}, {max_ns}] (buffer={BUFFER_NS})"
