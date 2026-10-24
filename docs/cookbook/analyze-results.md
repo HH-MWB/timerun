@@ -31,12 +31,12 @@ measurements = list(my_func.measurements)
 
 ## What to extract
 
-Each measurement has **wall time** and **CPU time**; use the one that matches your question (e.g. wall for latency, CPU for compute-bound work). Use `wall_time.duration` (nanoseconds, int) or `wall_time.timedelta.total_seconds()` for float seconds. You can also use **metadata** to group or filter before computing stats (e.g. by `run_id`, `stage`) so you get per-group summaries.
+Each measurement has **wall time** and **CPU time**; use the one that matches your question (e.g. wall for latency, CPU for compute-bound work). Use `wall_time.duration` (nanoseconds, int) or `wall_time.duration / 1e9` for float seconds. You can also use **metadata** to group or filter before computing stats (e.g. by `run_id`, `stage`) so you get per-group summaries.
 
 ```python
 durations_ns = [m.wall_time.duration for m in measurements]
 # or for seconds as float:
-durations_s = [m.wall_time.timedelta.total_seconds() for m in measurements]
+durations_s = [m.wall_time.duration / 1e9 for m in measurements]
 ```
 
 ## Summarize

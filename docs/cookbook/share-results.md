@@ -20,8 +20,8 @@ def log_measurement(m):
     logger.info(
         "timing",
         extra={
-            "wall_s": m.wall_time.timedelta.total_seconds(),
-            "cpu_s": m.cpu_time.timedelta.total_seconds(),
+            "wall_s": m.wall_time.duration / 1e9,
+            "cpu_s": m.cpu_time.duration / 1e9,
             **m.metadata,
         },
     )

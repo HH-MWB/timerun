@@ -21,10 +21,16 @@ Feature: Time span
 
   # --- Comparison ---
 
+  Scenario: Distinct time spans with identical durations do not compare equal
+    Given a time span A from 1,000,000,000 to 1,500,000,000
+    And a time span B from 100,000,000,000 to 100,500,000,000
+    Then time span A does not equal time span B
+    And putting both spans in a set produces 2 elements
+
   Scenario Outline: Compare two spans by duration
     Given span A of <duration_a> nanoseconds
     And span B of <duration_b> nanoseconds
-    Then time span A <relation> time span B
+    Then time span A duration <relation> time span B duration
 
     Examples:
       | duration_a | duration_b | relation                    |
@@ -41,3 +47,15 @@ Feature: Time span
     When I try to create a time span from 10 to 5
     Then a ValueError is raised
     And the error message is "end must be >= start"
+
+  Scenario Outline: Direct ordering comparison against unsupported operand raises TypeError
+    Given a time span from 0 to 1,000,000
+    When I compare whether the time span is less than <operand>
+    Then a TypeError is raised
+
+    Examples:
+      | operand           |
+      | an integer        |
+      | a float           |
+      | a string          |
+      | another time span |

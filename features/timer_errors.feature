@@ -24,3 +24,9 @@ Feature: Timer error handling
     When I call a decorated function that raises an exception
     Then the decorated function's measurements deque has 1 entry
     And an exception was propagated to the caller
+
+  Scenario: When a decorated function's on_start callback raises an error, that error propagates cleanly
+    Given an on_start callback that raises an application exception
+    When I call a decorated function with that on_start callback
+    Then the application exception is propagated to the caller
+    And no UnboundLocalError is raised

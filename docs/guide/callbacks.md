@@ -10,7 +10,7 @@ The optional **`on_start`** and **`on_end`** callbacks are invoked once per meas
 
 | Callback | When | State of the Measurement |
 |----------|------|---------------------------|
-| `on_start(measurement)` | When timing is about to start (on enter of the block or start of the decorated call). | `metadata` is set (a deep copy of the Timer’s initial metadata). `wall_time` and `cpu_time` are **`None`**. |
+| `on_start(measurement)` | When timing is about to start (on enter of the block or start of the decorated call). | `metadata` is set (a shallow copy of the Timer’s initial metadata). `wall_time` and `cpu_time` are **`None`**. |
 | `on_end(measurement)`   | When timing has just ended (on block exit or end of the decorated call). | `wall_time` and `cpu_time` are set. `metadata` may have been mutated in the block or in `on_start`. |
 
 Use `on_start` to add to `metadata` (e.g. from context variables). Use `on_end` to read durations and metadata and send them to logging, OpenTelemetry, or a metrics pipeline.

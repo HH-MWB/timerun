@@ -13,7 +13,21 @@ if TYPE_CHECKING:
     from behave.runner import Context
 
 
+class CustomAppError(Exception):
+    """Custom domain exception for testing callback error propagation."""
+
+
 # --- Given ---
+
+
+@given("an on_start callback that raises an application exception")
+def step_on_start_raises(context: Context) -> None:
+    """Set up an on_start callback that raises CustomAppError."""
+
+    def bad_callback(_m: timerun.Measurement) -> None:
+        raise CustomAppError
+
+    context.on_start_callback = bad_callback
 
 
 @given(
@@ -92,6 +106,21 @@ def step_when_call_raising(context: Context) -> None:
     context.measurement = raising.measurements[-1]
 
 
+@when("I call a decorated function with that on_start callback")
+def step_call_decorated_function_with_on_start(context: Context) -> None:
+    """Call a decorated function whose on_start raises; record exception."""
+
+    @timerun.Timer(on_start=context.on_start_callback)
+    def decorated_func() -> int:
+        return 42
+
+    try:
+        decorated_func()
+    except CustomAppError as exc:
+        context.caught_exception = exc
+        context.exception = exc
+
+
 # --- Then ---
 
 
@@ -110,3 +139,19 @@ def step_exception_propagated(context: Context) -> None:
 
     # Must be ValueError.
     assert isinstance(context.exception, ValueError)
+
+
+@then("the application exception is propagated to the caller")
+def step_application_exception_propagated(context: Context) -> None:
+    """Assert CustomAppError was propagated."""
+    assert hasattr(context, "caught_exception"), "No exception was caught"
+    assert isinstance(context.caught_exception, CustomAppError), (
+        f"Expected CustomAppError, got "
+        f"{type(context.caught_exception).__name__}"
+    )
+
+
+@then("no UnboundLocalError is raised")
+def step_no_unbound_local_error(context: Context) -> None:
+    """Assert no UnboundLocalError occurred."""
+    assert not isinstance(context.caught_exception, UnboundLocalError)

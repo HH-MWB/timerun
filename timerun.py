@@ -20,7 +20,7 @@ Or as a decorator to time every call::
     func()
     print(func.measurements[-1].wall_time.timedelta)
 
-Measurements support optional ``metadata`` (deep-copied per run) and
+Measurements support optional ``metadata`` (shallow-copied per run) and
 ``on_start`` / ``on_end`` callbacks. Timer is reusable: thread-safe for
 sync blocks, and task-safe for concurrent asyncio tasks.
 
@@ -40,7 +40,6 @@ from asyncio import current_task
 from collections import deque
 from collections.abc import AsyncGenerator, Callable, Generator
 from contextvars import ContextVar
-from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
@@ -51,7 +50,7 @@ from inspect import (
     isgeneratorfunction,
 )
 from threading import Lock, current_thread
-from time import perf_counter_ns, process_time_ns
+from time import perf_counter_ns, process_time_ns, thread_time_ns
 from types import TracebackType
 from typing import (
     Literal,
@@ -59,6 +58,7 @@ from typing import (
     Protocol,
     TypeVar,
     cast,
+    overload,
 )
 
 __version__: str = "0.6.2"
@@ -75,18 +75,18 @@ R_co = TypeVar("R_co", covariant=True)
 Y = TypeVar("Y")
 
 
-@dataclass(order=True, frozen=True)
+@dataclass(frozen=True)
 class TimeSpan:
     """A time interval with start and end timestamps.
 
-    Instances are immutable. Equality and ordering are based only on
-    ``duration``; ``start`` and ``end`` are excluded from comparison.
+    Instances are immutable. Equality and hashing are based on interval
+    identity (``start`` and ``end``). To compare or sort durations, use
+    ``span.duration``.
 
     Attributes
     ----------
     duration : int
-        Elapsed time in nanoseconds (end - start). Set in ``__post_init__``,
-        not a constructor argument. Used for equality, ordering, and hashing.
+        Elapsed time in nanoseconds (end - start). Set in ``__post_init__``.
     start : int
         Start timestamp in nanoseconds.
     end : int
@@ -101,16 +101,11 @@ class TimeSpan:
     ValueError
         If ``end < start``.
 
-    Notes
-    -----
-    ``start`` and ``end`` use ``field(compare=False)``, so two spans with
-    the same duration compare equal even if their intervals differ.
-
     """
 
     duration: int = field(init=False)
-    start: int = field(compare=False)
-    end: int = field(compare=False)
+    start: int
+    end: int
 
     def __post_init__(self) -> None:
         """Validate end >= start, then set duration (nanoseconds)."""
@@ -160,7 +155,8 @@ class _ContextMode(Enum):
     ASYNC = "async"
 
 
-class _TimedCallable(Protocol[P, R_co]):  # pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods
+class _TimedCallable(Protocol[P, R_co]):
     measurements: deque[Measurement]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R_co: ...
@@ -182,7 +178,7 @@ class Timer:
     ----------
     metadata : dict or None, optional
         Key-value metadata for the measurement(s). Stored by reference; each
-        measurement gets a deep copy at enter time. Defaults to ``{}``.
+        measurement gets a shallow copy at enter time. Defaults to ``{}``.
     on_start : callable or None, optional
         Called once per measurement when timing is about to start. Receives the
         :class:`Measurement` (with ``metadata`` set; ``wall_time`` and
@@ -258,7 +254,7 @@ class Timer:
 
         # Create per-instance context-local stack storage for active timings.
         self._stack_var: ContextVar[
-            tuple[int | None, deque[tuple[Measurement, int, int]]]
+            tuple[int | None, deque[tuple[Measurement, int, int]] | None]
         ] = ContextVar(f"timerun_timer_stack_{id(self)}")
 
     def _get_context_stack(
@@ -300,8 +296,9 @@ class Timer:
             owner_id = id(current_thread())
 
         # Get or bind stack for this context and return it.
-        owner, stack = self._stack_var.get((None, deque()))
-        if owner != owner_id:
+        owner, stack = self._stack_var.get((None, None))
+        if owner != owner_id or stack is None:
+            stack = deque()
             self._stack_var.set((owner_id, stack))
         return stack
 
@@ -315,13 +312,19 @@ class Timer:
 
         """
         # Create measurement and run on_start callback if set.
-        measurement = Measurement(metadata=deepcopy(self._metadata))
+        measurement = Measurement(metadata=self._metadata.copy())
         if self._on_start is not None:
             self._on_start(measurement)
 
         # Push onto context stack and return.
         stack = self._get_context_stack(mode)
-        stack.append((measurement, perf_counter_ns(), process_time_ns()))
+        wall_start = perf_counter_ns()
+        cpu_start = (
+            thread_time_ns()
+            if mode is _ContextMode.SYNC
+            else process_time_ns()
+        )
+        stack.append((measurement, wall_start, cpu_start))
         return measurement
 
     def _exit(self, mode: _ContextMode) -> None:
@@ -334,7 +337,11 @@ class Timer:
 
         """
         # Capture end timestamps before popping.
-        cpu_end = process_time_ns()
+        cpu_end = (
+            thread_time_ns()
+            if mode is _ContextMode.SYNC
+            else process_time_ns()
+        )
         wall_end = perf_counter_ns()
 
         # Pop measurement or raise if no matching enter.
@@ -378,25 +385,29 @@ class Timer:
         self._exit(_ContextMode.ASYNC)
         return False
 
+    @overload
+    def __call__(
+        self,
+        f: Callable[P, AsyncGenerator[Y, None]],
+    ) -> _TimedCallable[P, AsyncGenerator[Y, None]]: ...
+
+    @overload
+    def __call__(
+        self,
+        f: Callable[P, Generator[Y, None, None]],
+    ) -> _TimedCallable[P, Generator[Y, None, None]]: ...
+
+    @overload
+    def __call__(
+        self,
+        f: Callable[P, R],
+    ) -> _TimedCallable[P, R]: ...
+
     def __call__(  # noqa: C901
         self,
         f: Callable[P, R],
-    ) -> (
-        _TimedCallable[P, R]
-        | _TimedCallable[P, AsyncGenerator[Y, None]]
-        | _TimedCallable[P, Generator[Y, None, None]]
-    ):
-        """When given a callable, wrap it with timing (decorator usage).
-
-        Notes
-        -----
-        In each wrapper branch, ``append_measurement(m)`` in the ``finally``
-        block uses ``m`` from the context manager (``with self as m`` or
-        ``async with self as m``). The context manager always runs before the
-        ``finally`` block, so ``m`` is always set. The used-before-assignment
-        linter warning is a false positive.
-
-        """
+    ) -> _TimedCallable[P, R]:
+        """When given a callable, wrap it with timing (decorator usage)."""
         # Shared state and helper for all wrapper branches.
         measurements: deque[Measurement] = deque(maxlen=self._maxlen)
         lock = Lock()
@@ -413,13 +424,19 @@ class Timer:
                 *args: P.args,
                 **kwargs: P.kwargs,
             ) -> AsyncGenerator[Y, None]:
-                inner = f(*args, **kwargs)
+                inner = cast(
+                    "Callable[P, AsyncGenerator[Y, None]]",
+                    f,
+                )(*args, **kwargs)
+                recorded: list[Measurement] = []
                 try:
                     async with self as m:
+                        recorded.append(m)
                         async for x in inner:
                             yield x
                 finally:
-                    append_measurement(m)  # pylint: disable=used-before-assignment
+                    if recorded:
+                        append_measurement(recorded[0])
 
         elif iscoroutinefunction(f):
 
@@ -428,11 +445,13 @@ class Timer:
                 *args: P.args,
                 **kwargs: P.kwargs,
             ) -> R:
+                m: Measurement | None = None
                 try:
                     async with self as m:
                         return cast("R", await f(*args, **kwargs))
                 finally:
-                    append_measurement(m)  # pylint: disable=used-before-assignment
+                    if m is not None:
+                        append_measurement(m)
 
         elif isgeneratorfunction(f):
 
@@ -441,28 +460,34 @@ class Timer:
                 *args: P.args,
                 **kwargs: P.kwargs,
             ) -> Generator[Y, None, None]:
-                inner = f(*args, **kwargs)
+                inner = cast(
+                    "Callable[P, Generator[Y, None, None]]",
+                    f,
+                )(*args, **kwargs)
+                recorded: list[Measurement] = []
                 try:
                     with self as m:
+                        recorded.append(m)
                         yield from inner
                 finally:
-                    append_measurement(m)  # pylint: disable=used-before-assignment
+                    if recorded:
+                        append_measurement(recorded[0])
 
         else:
 
             @wraps(f)
             def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                m: Measurement | None = None
                 try:
                     with self as m:
                         return f(*args, **kwargs)
                 finally:
-                    append_measurement(m)  # pylint: disable=used-before-assignment
+                    if m is not None:
+                        append_measurement(m)
 
         # Attach measurements to wrapper and return.
         wrapped = cast(
-            "_TimedCallable[P, R] | "
-            "_TimedCallable[P, AsyncGenerator[Y, None]] | "
-            "_TimedCallable[P, Generator[Y, None, None]]",
+            "_TimedCallable[P, R]",
             wrapper,
         )
         wrapped.measurements = measurements

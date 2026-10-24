@@ -24,3 +24,9 @@ Feature: Timer metadata
     When I call a decorated function with that metadata
     Then the measurement's metadata key "run_id" is "exp-1"
     And the measurement's metadata key "tag" is "baseline"
+
+  Scenario: Metadata containing synchronization objects does not crash on enter
+    Given metadata with an unpickleable lock object
+    When I measure a code block with that metadata
+    Then the measurement completes successfully
+    And the measurement metadata carries the lock object

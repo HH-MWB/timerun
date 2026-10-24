@@ -10,7 +10,7 @@ title: Use metadata effectively
 
 ## Why this works
 
-Each measurement gets its own deep copy of the metadata dict, so mutations in `on_start` or the block affect only that run. See [Guide: Metadata](../guide/metadata.md) for copy and isolation rules.
+Each measurement gets its own shallow copy of the metadata dict, so mutations in `on_start` or the block affect only that run. See [Guide: Metadata](../guide/metadata.md) for copy and isolation rules.
 
 ## Example: add run context in `on_start`
 

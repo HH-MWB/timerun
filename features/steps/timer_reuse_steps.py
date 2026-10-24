@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
@@ -215,4 +216,146 @@ def step_measurements_from_different_threads(context: Context) -> None:
     # All distinct (one measurement per thread).
     assert len(measurements) == len({id(m) for m in measurements}), (
         "measurements are not all distinct (one per thread)"
+    )
+
+
+@given("a Timer shared by an outer task and two child tasks")
+def step_shared_timer_with_child_tasks(context: Context) -> None:
+    """Create a shared Timer instance for outer and child tasks."""
+    context.shared_timer = timerun.Timer()
+
+
+@given("child task {which:w} runs for {duration_ns:n} nanoseconds")
+def step_child_task_duration(
+    context: Context,
+    which: str,
+    duration_ns: int,
+) -> None:
+    """Store duration for child task."""
+    setattr(context, f"child_task_{which}_duration_ns", duration_ns)
+
+
+@given("a CPU-bound thread running for {duration_ns:n} nanoseconds")
+def step_cpu_bound_thread(context: Context, duration_ns: int) -> None:
+    """Store duration for CPU-bound thread."""
+    context.cpu_thread_duration_ns = duration_ns
+
+
+@given("an idle sleeping thread running for {duration_ns:n} nanoseconds")
+def step_idle_sleeping_thread(context: Context, duration_ns: int) -> None:
+    """Store duration for idle sleeping thread."""
+    context.idle_thread_duration_ns = duration_ns
+
+
+@when(
+    "I run both child tasks concurrently from within the active outer timer",
+)
+def step_run_child_tasks_within_active_timer(context: Context) -> None:
+    """Execute concurrent child tasks from within an active timer block."""
+    timer = context.shared_timer
+    fast_ns = context.child_task_fast_duration_ns
+    slow_ns = context.child_task_slow_duration_ns
+
+    async def worker_fast() -> timerun.Measurement:
+        async with timer as m:
+            await asyncio.sleep(fast_ns / 1e9)
+        return m
+
+    async def worker_slow() -> timerun.Measurement:
+        async with timer as m:
+            await asyncio.sleep(slow_ns / 1e9)
+        return m
+
+    async def run() -> tuple[timerun.Measurement, timerun.Measurement]:
+        async with timer:
+            t1 = asyncio.create_task(worker_fast())
+            await asyncio.sleep(0.001)
+            t2 = asyncio.create_task(worker_slow())
+            return await asyncio.gather(t1, t2)
+
+    res_fast, res_slow = asyncio.run(run())
+    context.child_task_fast_measurement = res_fast
+    context.child_task_slow_measurement = res_slow
+
+
+@when("I measure both threads concurrently with the same Timer instance")
+def step_measure_both_threads_concurrently(context: Context) -> None:
+    """Run CPU-bound and idle threads concurrently with shared Timer."""
+    timer = timerun.Timer()
+    cpu_duration_sec = context.cpu_thread_duration_ns / 1e9
+    idle_duration_sec = context.idle_thread_duration_ns / 1e9
+    m_idle: timerun.Measurement | None = None
+
+    def cpu_worker() -> None:
+        with timer:
+            start = time.process_time()
+            while time.process_time() - start < cpu_duration_sec:
+                pass
+
+    def idle_worker() -> None:
+        nonlocal m_idle
+        with timer as m:
+            time.sleep(idle_duration_sec)
+        m_idle = m
+
+    t1 = threading.Thread(target=cpu_worker)
+    t2 = threading.Thread(target=idle_worker)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    context.idle_thread_measurement = m_idle
+
+
+@then(
+    "the {which:w} child task's wall time duration is within "
+    "{expected_ns:n} nanoseconds",
+)
+def step_child_task_wall_time_within(
+    context: Context,
+    which: str,
+    expected_ns: int,
+) -> None:
+    """Assert child task duration is within expected bound."""
+    m = getattr(context, f"child_task_{which}_measurement")
+    assert m.wall_time is not None
+    assert m.wall_time.duration <= expected_ns, (
+        f"{which} task measured {m.wall_time.duration}ns, "
+        f"expected <= {expected_ns}ns"
+    )
+
+
+@then(
+    "the {which:w} child task's wall time duration is at least "
+    "{expected_ns:n} nanoseconds",
+)
+def step_child_task_wall_time_at_least(
+    context: Context,
+    which: str,
+    expected_ns: int,
+) -> None:
+    """Assert child task duration is at least expected bound."""
+    m = getattr(context, f"child_task_{which}_measurement")
+    assert m.wall_time is not None
+    assert m.wall_time.duration >= expected_ns, (
+        f"{which} task measured {m.wall_time.duration}ns, "
+        f"expected >= {expected_ns}ns"
+    )
+
+
+@then(
+    "the idle sleeping thread CPU time duration is at most "
+    "{expected_ns:n} nanoseconds",
+)
+def step_idle_thread_cpu_time_at_most(
+    context: Context,
+    expected_ns: int,
+) -> None:
+    """Assert idle thread CPU time is at most expected bound."""
+    m = context.idle_thread_measurement
+    assert m.cpu_time is not None
+    assert m.cpu_time.duration <= expected_ns, (
+        f"Idle thread CPU time was {m.cpu_time.duration}ns, "
+        f"expected <= {expected_ns}ns"
     )

@@ -29,6 +29,7 @@ with Timer(metadata={"run_id": "exp-1"}) as m:
 # After block exit:
 m.wall_time       # TimeSpan (set)
 m.cpu_time        # TimeSpan (set)
+m.wall_time.duration    # int nanoseconds (e.g. 1230000)
 m.wall_time.timedelta   # datetime.timedelta
 m.metadata        # {"run_id": "exp-1"} (your copy; mutable)
 ```

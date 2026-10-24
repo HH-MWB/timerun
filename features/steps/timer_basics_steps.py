@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from typing import TYPE_CHECKING
 
@@ -181,4 +182,37 @@ def step_cpu_time_within_buffer(context: Context, expected_ns: int) -> None:
     max_ns = expected_ns + BUFFER_NS
     assert min_ns <= duration <= max_ns, (
         f"CPU time {duration} not in [{min_ns}, {max_ns}] (buffer={BUFFER_NS})"
+    )
+
+
+@given("a function with a typed return signature")
+def step_given_typed_function(context: Context) -> None:
+    """Define a function with an explicit return type."""
+
+    def compute_answer() -> int:
+        return 42
+
+    context.original_func = compute_answer
+
+
+@when("I decorate the function with Timer")
+def step_decorate_function_with_timer(context: Context) -> None:
+    """Decorate the function with Timer()."""
+    context.decorated_func = timerun.Timer()(context.original_func)
+
+
+@then("the decorated function preserves the original return type")
+def step_assert_return_type_preserved(context: Context) -> None:
+    """Assert decorated function preserves return type and signature."""
+    orig_type = inspect.signature(context.original_func).return_annotation
+    dec_type = inspect.signature(context.decorated_func).return_annotation
+    assert orig_type == dec_type, (
+        f"Expected return type {orig_type}, got {dec_type}"
+    )
+
+    # Verify decorator call signature does not widen to a generator union
+    sig = inspect.signature(timerun.Timer.__call__)
+    ret_str = str(sig.return_annotation)
+    assert not ("AsyncGenerator" in ret_str and "Generator" in ret_str), (
+        f"Timer.__call__ return annotation is a broad union: {ret_str}"
     )

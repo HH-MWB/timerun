@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING
 
 from behave import given, then, when
@@ -19,6 +20,13 @@ if TYPE_CHECKING:
 def step_given_metadata(context: Context, run_id: str, tag: str) -> None:
     """Store metadata for Timer."""
     context.metadata = {"run_id": run_id, "tag": tag}
+
+
+@given("metadata with an unpickleable lock object")
+def step_metadata_unpickleable_lock(context: Context) -> None:
+    """Store metadata containing a threading.Lock."""
+    context.lock_obj = threading.Lock()
+    context.metadata = {"lock": context.lock_obj}
 
 
 @given('I will add metadata key "{key}" as "{value}" in the first block')
@@ -83,3 +91,16 @@ def step_second_measurement_metadata_no_key(
 ) -> None:
     """Assert second measurement has no key."""
     assert key not in context.second_measurement.metadata
+
+
+@then("the measurement completes successfully")
+def step_measurement_completes_successfully(context: Context) -> None:
+    """Assert measurement completed and is set on context."""
+    assert hasattr(context, "measurement")
+    assert context.measurement is not None
+
+
+@then("the measurement metadata carries the lock object")
+def step_measurement_carries_lock(context: Context) -> None:
+    """Assert measurement metadata holds the original lock object."""
+    assert context.measurement.metadata.get("lock") is context.lock_obj

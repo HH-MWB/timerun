@@ -40,6 +40,18 @@ def step_given_time_span(context: Context, start: int, end: int) -> None:
     context.time_span = timerun.TimeSpan(start=start, end=end)
 
 
+@given("a time span A from {start:n} to {end:n}")
+def step_given_time_span_a(context: Context, start: int, end: int) -> None:
+    """Create time span A."""
+    context.time_span_a = timerun.TimeSpan(start=start, end=end)
+
+
+@given("a time span B from {start:n} to {end:n}")
+def step_given_time_span_b(context: Context, start: int, end: int) -> None:
+    """Create time span B."""
+    context.time_span_b = timerun.TimeSpan(start=start, end=end)
+
+
 @given("span {name:w} of {duration:n} nanoseconds")
 def step_given_span_of_duration(
     context: Context,
@@ -62,7 +74,7 @@ def step_try_create_time_span(context: Context, start: int, end: int) -> None:
     """Create TimeSpan; store exception."""
     try:
         timerun.TimeSpan(start=start, end=end)
-    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except ValueError as e:
         context.exception = e
 
 
@@ -86,13 +98,22 @@ def step_timedelta_is_seconds_standard_type(
     assert result == timedelta(seconds=seconds)
 
 
-@then("time span A {relation:Relation} time span B")
-def step_time_span_a_relation_b(context: Context, relation: str) -> None:
-    """Assert two time spans satisfy relation."""
+@then("time span A duration {relation:Relation} time span B duration")
+def step_time_span_a_duration_relation_b(
+    context: Context,
+    relation: str,
+) -> None:
+    """Assert two time span durations satisfy relation."""
     assert RELATION_OPERATORS[relation](
-        context.time_span_a,
-        context.time_span_b,
+        context.time_span_a.duration,
+        context.time_span_b.duration,
     )
+
+
+@then("time span A does not equal time span B")
+def step_time_span_a_not_equal_b(context: Context) -> None:
+    """Assert time span A does not equal time span B."""
+    assert context.time_span_a != context.time_span_b
 
 
 @then("the {which:w} value is {expected:n}")
@@ -103,3 +124,33 @@ def step_time_span_value_is(
 ) -> None:
     """Assert start or end equals expected."""
     assert getattr(context.time_span, which) == expected
+
+
+@then("putting both spans in a set produces {count:n} elements")
+def step_spans_in_set_produces(context: Context, count: int) -> None:
+    """Assert putting span A and span B in a set produces count elements."""
+    span_set = {context.time_span_a, context.time_span_b}
+    assert len(span_set) == count, (
+        f"Expected {count} elements in set, got {len(span_set)}"
+    )
+
+
+UNSUPPORTED_OPERANDS: dict[str, object] = {
+    "an integer": 1_000_000,
+    "a float": 1.5,
+    "a string": "1,000,000",
+    "another time span": timerun.TimeSpan(start=0, end=2_000_000),
+}
+
+
+@when("I compare whether the time span is less than {operand}")
+def step_compare_time_span_less_than(
+    context: Context,
+    operand: str,
+) -> None:
+    """Attempt ordering comparison between TimeSpan and specified operand."""
+    target = UNSUPPORTED_OPERANDS[operand]
+    try:
+        _ = context.time_span < target
+    except TypeError as e:
+        context.exception = e

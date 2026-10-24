@@ -25,8 +25,8 @@ title: Time web requests
                     "request",
                     extra={
                         "path": str(request.url.path),
-                        "wall_s": m.wall_time.timedelta.total_seconds(),
-                        "cpu_s": m.cpu_time.timedelta.total_seconds(),
+                        "wall_s": m.wall_time.duration / 1e9,
+                        "cpu_s": m.cpu_time.duration / 1e9,
                     },
                 ),
             ):
@@ -66,8 +66,8 @@ title: Time web requests
         logger.info(
             "request",
             extra={
-                "wall_s": m.wall_time.timedelta.total_seconds(),
-                "cpu_s": m.cpu_time.timedelta.total_seconds(),
+                "wall_s": m.wall_time.duration / 1e9,
+                "cpu_s": m.cpu_time.duration / 1e9,
             },
         )
     ```
@@ -91,8 +91,8 @@ title: Time web requests
                     "request",
                     extra={
                         "path": request.path,
-                        "wall_s": m.wall_time.timedelta.total_seconds(),
-                        "cpu_s": m.cpu_time.timedelta.total_seconds(),
+                        "wall_s": m.wall_time.duration / 1e9,
+                        "cpu_s": m.cpu_time.duration / 1e9,
                     },
                 )
 

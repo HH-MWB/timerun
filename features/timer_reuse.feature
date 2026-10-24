@@ -52,3 +52,17 @@ Feature: Timer reuse
     When I decorate it with Timer with maxlen 2
     And I call the decorated function 3 times
     Then the decorated function's measurements deque has 2 entries
+
+  Scenario: Child tasks spawned inside an active timer measure independently
+    Given a Timer shared by an outer task and two child tasks
+    And child task fast runs for 10,000,000 nanoseconds
+    And child task slow runs for 50,000,000 nanoseconds
+    When I run both child tasks concurrently from within the active outer timer
+    Then the fast child task's wall time duration is within 30,000,000 nanoseconds
+    And the slow child task's wall time duration is at least 40,000,000 nanoseconds
+
+  Scenario: Idle sleeping thread does not attribute CPU work from concurrent thread
+    Given a CPU-bound thread running for 100,000,000 nanoseconds
+    And an idle sleeping thread running for 100,000,000 nanoseconds
+    When I measure both threads concurrently with the same Timer instance
+    Then the idle sleeping thread CPU time duration is at most 25,000,000 nanoseconds

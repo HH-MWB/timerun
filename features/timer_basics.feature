@@ -43,3 +43,8 @@ Feature: Basic timing
     Given an async generator that yields 3 items and sleeps 2,500,000 nanoseconds total
     When I fully consume the decorated generator
     Then the decorated function's measurements deque has 1 entry
+
+  Scenario: Decorating a function preserves its return type
+    Given a function with a typed return signature
+    When I decorate the function with Timer
+    Then the decorated function preserves the original return type
