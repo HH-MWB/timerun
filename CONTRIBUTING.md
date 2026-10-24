@@ -86,7 +86,7 @@ TimeRun uses **behavior-driven development (BDD)** with [behave](https://behave.
 
 Pre-commit hooks (installed by `make init`) run on each commit. Before pushing, run `make lint` and fix any failures so CI stays green.
 
-CI (on pull requests and pushes to `main`) runs: **lint** (pre-commit) → **test** (Python 3.10–3.14 matrix, with coverage) → **build** (package build and `twine check`). Outdated runs for the same branch are cancelled automatically.
+CI (on pull requests and pushes to `main`) runs: **lint** (pre-commit) → **test** (Python 3.10–3.15 matrix, with coverage) → **build** (package build and `twine check`). Outdated runs for the same branch are cancelled automatically.
 
 We expect (all run via `make lint`):
 
