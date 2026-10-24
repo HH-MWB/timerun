@@ -48,6 +48,7 @@ For async code, use `async with Timer() as m:` the same way.
 def my_func():
     pass
 
+
 my_func()
 m = my_func.measurements[-1]  # measurement for last call
 ```

@@ -27,11 +27,11 @@ with Timer(metadata={"run_id": "exp-1"}) as m:
     pass  # your code
 
 # After block exit:
-m.wall_time       # TimeSpan (set)
-m.cpu_time        # TimeSpan (set)
-m.wall_time.duration    # int nanoseconds (e.g. 1230000)
-m.wall_time.timedelta   # datetime.timedelta
-m.metadata        # {"run_id": "exp-1"} (your copy; mutable)
+m.wall_time  # TimeSpan (set)
+m.cpu_time  # TimeSpan (set)
+m.wall_time.duration  # int nanoseconds (e.g. 1230000)
+m.wall_time.timedelta  # datetime.timedelta
+m.metadata  # {"run_id": "exp-1"} (your copy; mutable)
 ```
 
 You can also construct a Measurement manually (e.g. for tests) by passing `wall_time`, `cpu_time`, and optional `metadata` to the constructor.

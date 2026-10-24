@@ -31,7 +31,7 @@ from datetime import timedelta
 from timerun import TimeSpan
 
 span = TimeSpan(start=0, end=1_000_000)  # 1 ms
-span.duration   # 1000000 (nanoseconds)
+span.duration  # 1000000 (nanoseconds)
 span.timedelta  # datetime.timedelta(microseconds=1000)
 
 # Float seconds can be calculated directly if needed:

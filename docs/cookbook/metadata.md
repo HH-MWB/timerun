@@ -22,8 +22,10 @@ from timerun import Timer
 
 request_id_ctx: ContextVar[str] = ContextVar("request_id", default="")
 
+
 def add_request_id(m):
     m.metadata["request_id"] = request_id_ctx.get()
+
 
 with Timer(on_start=add_request_id) as m:
     pass  # your code

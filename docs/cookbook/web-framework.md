@@ -58,9 +58,7 @@ title: Time web requests
         if not hasattr(g, "_timer"):
             return
         g._timer.__exit__(
-            type(exc) if exc else None,
-            exc,
-            exc.__traceback__ if exc else None
+            type(exc) if exc else None, exc, exc.__traceback__ if exc else None
         )
         m = g._measurement
         logger.info(

@@ -16,8 +16,8 @@ Use the Timer as a **context manager** to measure a single block of code. The Ti
     with Timer() as m:
         pass  # code block to be measured
 
-    m.wall_time.timedelta   # datetime.timedelta
-    m.cpu_time.timedelta    # datetime.timedelta
+    m.wall_time.timedelta  # datetime.timedelta
+    m.cpu_time.timedelta  # datetime.timedelta
     ```
 
 === "Asynchronous"
@@ -28,8 +28,8 @@ Use the Timer as a **context manager** to measure a single block of code. The Ti
     async with Timer() as m:
         await do_something()
 
-    m.wall_time.timedelta   # datetime.timedelta
-    m.cpu_time.timedelta    # datetime.timedelta
+    m.wall_time.timedelta  # datetime.timedelta
+    m.cpu_time.timedelta  # datetime.timedelta
     ```
 
 Wall vs CPU time and sampling order are explained in [Timer overview: How timing works](timer.md#how-timing-works).

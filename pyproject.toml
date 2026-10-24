@@ -96,6 +96,7 @@ force-exclude = true
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "CPY001",  # Missing copyright notice at top of file
     "D203",  # Incompatible with D211 (no-blank-line-before-class)
     "D213",  # Incompatible with D212 (multi-line-summary-first-line)
 ]

@@ -13,9 +13,11 @@ Apply the **decorator** `@Timer()` to time every call to a function or generator
     ```python
     from timerun import Timer
 
+
     @Timer()
     def func():
         return
+
 
     func()
     func.measurements[-1].wall_time.timedelta
@@ -28,13 +30,16 @@ Apply the **decorator** `@Timer()` to time every call to a function or generator
     import asyncio
     from timerun import Timer
 
+
     @Timer()
     async def func():
         return
 
+
     async def main():
         await func()
         func.measurements[-1].wall_time.timedelta
+
 
     asyncio.run(main())
     ```
@@ -44,10 +49,12 @@ Apply the **decorator** `@Timer()` to time every call to a function or generator
     ```python
     from timerun import Timer
 
+
     @Timer()
     def gen():
         yield 1
         yield 2
+
 
     list(gen())  # one measurement after full consumption
     gen.measurements[-1].wall_time.timedelta
@@ -59,15 +66,18 @@ Apply the **decorator** `@Timer()` to time every call to a function or generator
     import asyncio
     from timerun import Timer
 
+
     @Timer()
     async def agen():
         yield 1
         yield 2
 
+
     async def main():
         async for _ in agen():
             pass
         agen.measurements[-1].wall_time.timedelta
+
 
     asyncio.run(main())
     ```

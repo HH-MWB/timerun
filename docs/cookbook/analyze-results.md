@@ -17,9 +17,11 @@ Two common ways to get a list of measurements:
 ```python
 from timerun import Timer
 
+
 @Timer()
 def my_func():
     pass
+
 
 for _ in range(100):
     my_func()
@@ -100,7 +102,9 @@ lower, upper = ci
 half_width = (upper - lower) / 2
 
 fig, ax = plt.subplots()
-ax.errorbar(0, mean_s, yerr=half_width, fmt="o", capsize=5, label="mean ± 95% CI")
+ax.errorbar(
+    0, mean_s, yerr=half_width, fmt="o", capsize=5, label="mean ± 95% CI"
+)
 ax.set_ylabel("Duration (s)")
 ax.set_xticks([])
 ax.legend()
