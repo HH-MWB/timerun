@@ -1,10 +1,8 @@
 <p align="center">
   <a href="https://github.com/HH-MWB/timerun">
-    <img src="https://user-images.githubusercontent.com/50187675/62002266-8f926b80-b0ce-11e9-9e54-3b7eeb3a2ae1.png" alt="TimeRun">
+    <img src="https://github.com/user-attachments/assets/00f08873-3ee5-4ee4-a41f-f9eda37fc30d" alt="TimeRun">
   </a>
 </p>
-
-<p align="center"><strong>TimeRun</strong> — <em>Structured timing for Python.</em></p>
 
 <p align="center">
     <a href="https://pypi.org/project/timerun/"><img alt="Version" src="https://img.shields.io/pypi/v/timerun.svg"></a>

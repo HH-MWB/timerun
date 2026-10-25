@@ -30,6 +30,8 @@ nav = [
 # -- Theme -------------------------------------------------------------------
 
 [project.theme]
+logo = "https://github.com/user-attachments/assets/e438ee66-bf13-465c-a28a-8474f226a7e9"
+favicon = "https://github.com/user-attachments/assets/e438ee66-bf13-465c-a28a-8474f226a7e9"
 features = [
   "content.code.annotate",
   "content.code.copy",
