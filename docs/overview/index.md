@@ -53,7 +53,7 @@ If that sounds like you, TimeRun is a good fit.
 
 ## How it compares
 
-| Aspect | TimeRun | Manual `perf_counter` / `process_time()` | Heavy profilers (cProfile, py-spy) | Vendor APM agents |
+| Aspect | TimeRun | Manual `perf_counter` / `thread_time()` | Heavy profilers (cProfile, py-spy) | Vendor APM agents |
 |--------|--------|----------------------------------------|------------------------------------|-------------------|
 | **Dependencies** | None | None | Often extra tooling | Agent + vendor stack |
 | **Wall + CPU** | Yes | You wire both | Varies | Usually wall only |

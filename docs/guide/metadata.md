@@ -8,7 +8,7 @@ Key-value **metadata** can be attached to each measurement (e.g. run id, tags). 
 
 ## Supplying metadata
 
-Provide a dictionary when instantiating the Timer:
+Provide a mapping (such as a dictionary) when instantiating the Timer:
 
 ```python
 with Timer(metadata={"run_id": "abc", "tag": "ingest"}) as m:
@@ -17,7 +17,7 @@ with Timer(metadata={"run_id": "abc", "tag": "ingest"}) as m:
 # m.metadata is {"run_id": "abc", "tag": "ingest"}
 ```
 
-Each measurement receives a **shallow copy** of this dictionary at enter time (`self._metadata.copy()`). The Timer retains the original by reference but does not reuse the same dict for multiple measurements. Non-pickleable objects (such as locks, file handles, or network connections) can be safely included in metadata without crashing.
+Timer converts the mapping into an internal dictionary; each measurement receives a **shallow copy** at enter time (`self._metadata.copy()`). Non-pickleable objects (such as locks, file handles, or network connections) can be safely included in metadata without crashing.
 
 ## Per-measurement copy; isolation between runs
 

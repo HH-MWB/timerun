@@ -10,10 +10,10 @@ A **TimeSpan** represents an immutable time interval with start and end timestam
 
 | Attribute      | Type | Description |
 |---------------|------|-------------|
-| `duration`    | `int` | Elapsed time in nanoseconds (`end - start`). Computed automatically when the object is created — not a constructor argument. |
 | `start`       | `int` | Start timestamp in nanoseconds. Used for equality and hashing. |
 | `end`         | `int` | End timestamp in nanoseconds. Used for equality and hashing. |
-| `timedelta`   | `datetime.timedelta` | Read-only. Duration as a `datetime.timedelta`; nanoseconds are converted to whole microseconds (`duration // 1000`) to match `timedelta` resolution. |
+| `duration`    | `int` | Elapsed time in nanoseconds (`end - start`). Computed property — not a constructor argument. |
+| `timedelta`   | `datetime.timedelta` | Duration as a `datetime.timedelta`; nanoseconds are converted to whole microseconds (`duration // 1000`) to match `timedelta` resolution. |
 
 ## Comparison and hashing
 

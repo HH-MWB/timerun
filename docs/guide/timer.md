@@ -16,7 +16,7 @@ title: Timer overview
 
     On exit, CPU time is sampled before wall time, so `wall_time` can be slightly larger than `cpu_time` even with little I/O or scheduling.
 
-`wall_time` uses `time.perf_counter_ns()` (monotonic elapsed wall time — counts all real time including waiting). In synchronous mode, `cpu_time` uses `time.thread_time_ns()` (isolating CPU time spent exclusively by the calling thread, preventing sibling thread contamination); in asynchronous mode, `cpu_time` uses `time.process_time_ns()` (total CPU time of the process across the event loop). Nested use of the same `Timer` instance stacks measurements: each level has its own `Measurement`, and inner wall time falls inside outer wall time when nested.
+`wall_time` uses `time.perf_counter_ns()` (monotonic elapsed wall time — counts all real time including waiting). `cpu_time` uses `time.thread_time_ns()` (isolating CPU time spent exclusively by the calling thread, preventing sibling thread contamination across both sync execution and event loops). Nested use of the same `Timer` instance stacks measurements: each level has its own `Measurement`, and inner wall time falls inside outer wall time when nested.
 
 ```mermaid
 sequenceDiagram
@@ -41,7 +41,7 @@ All parameters are optional and keyword-only (passed by name, e.g. `Timer(metada
 
 | Parameter   | Type | Description |
 |------------|------|-------------|
-| `metadata` | `dict \| None` | Key-value metadata for the measurement(s). Each measurement gets a shallow copy (`self._metadata.copy()`) when the timed block or call begins. Defaults to `{}`. |
+| `metadata` | `Mapping \| None` | Key-value metadata for the measurement(s). Converted to an internal dictionary; each measurement gets a shallow copy (`self._metadata.copy()`) when the timed block or call begins. Defaults to `{}`. |
 | `on_start` | `callable \| None` | Called once per measurement when timing is about to start. Receives the `Measurement` (metadata set; `wall_time` and `cpu_time` are `None`). Defaults to `None`. |
 | `on_end`   | `callable \| None` | Called once per measurement when timing has just ended. Receives the `Measurement` with `wall_time` and `cpu_time` set. Defaults to `None`. |
 | `maxlen`   | `int \| None` | **Decorator only.** Maximum number of measurements to keep on the wrapped callable. Ignored when used as a context manager. Defaults to `None` (unbounded). |

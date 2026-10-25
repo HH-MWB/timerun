@@ -2,7 +2,7 @@
 
 TimeRun is a single-file package with no dependencies beyond the standard
 library. It records wall-clock time (``perf_counter_ns``) and CPU time
-(``process_time_ns``) for code blocks and function calls, producing one
+(``thread_time_ns``) for code blocks and function calls, producing one
 :class:`Measurement` per run. Each measurement carries two
 :class:`TimeSpan` objects and optional user-defined metadata.
 
@@ -38,11 +38,17 @@ Timer
 
 from asyncio import current_task
 from collections import deque
-from collections.abc import AsyncGenerator, Callable, Generator
+from collections.abc import (
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Generator,
+    Mapping,
+)
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import timedelta
-from enum import Enum
 from functools import wraps
 from inspect import (
     isasyncgenfunction,
@@ -50,7 +56,7 @@ from inspect import (
     isgeneratorfunction,
 )
 from threading import Lock, current_thread
-from time import perf_counter_ns, process_time_ns, thread_time_ns
+from time import perf_counter_ns, thread_time_ns
 from types import TracebackType
 from typing import (
     Literal,
@@ -58,7 +64,6 @@ from typing import (
     Protocol,
     TypeVar,
     cast,
-    overload,
 )
 
 __version__: str = "0.7.0"
@@ -69,13 +74,11 @@ __all__ = [
     "Timer",
 ]
 
-P = ParamSpec("P")
-R = TypeVar("R")
-R_co = TypeVar("R_co", covariant=True)
-Y = TypeVar("Y")
+
+# --- Data Models ---
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TimeSpan:
     """A time interval with start and end timestamps.
 
@@ -85,16 +88,16 @@ class TimeSpan:
 
     Attributes
     ----------
-    duration : int
-        Elapsed time in nanoseconds (end - start). Set in ``__post_init__``.
     start : int
         Start timestamp in nanoseconds.
     end : int
         End timestamp in nanoseconds.
+    duration : int
+        Elapsed time in nanoseconds (end - start).
     timedelta : timedelta
-        Read-only. Duration as a ``datetime.timedelta``; nanoseconds are
-        converted to whole microseconds (``duration // 1000``) to match
-        timedelta's resolution.
+        Duration as a ``datetime.timedelta``; nanoseconds are converted to
+        whole microseconds (``duration // 1000``) to match timedelta's
+        resolution.
 
     Raises
     ------
@@ -103,16 +106,19 @@ class TimeSpan:
 
     """
 
-    duration: int = field(init=False)
     start: int
     end: int
 
     def __post_init__(self) -> None:
-        """Validate end >= start, then set duration (nanoseconds)."""
+        """Validate end >= start."""
         if self.end < self.start:
             msg = "end must be >= start"
             raise ValueError(msg)
-        object.__setattr__(self, "duration", self.end - self.start)
+
+    @property
+    def duration(self) -> int:
+        """Elapsed time in nanoseconds (end - start)."""
+        return self.end - self.start
 
     @property
     def timedelta(self) -> timedelta:
@@ -120,16 +126,13 @@ class TimeSpan:
         return timedelta(microseconds=self.duration // 1000)
 
 
-@dataclass
+@dataclass(slots=True)
 class Measurement:
     """A single measurement record: wall time, CPU time, and optional metadata.
 
-    Use this to collect the result of a single timing run: wall-clock time,
-    CPU time, and any user-defined metadata.
-
-    When created by Timer (context manager or decorator), ``wall_time`` and
-    ``cpu_time`` are ``None`` until the block exits, then they are set to the
-    measured spans.
+    When created by :class:`Timer` (context manager or decorator),
+    ``wall_time`` and ``cpu_time`` are ``None`` until the block exits, then
+    they are set to the measured spans.
 
     Attributes
     ----------
@@ -148,18 +151,24 @@ class Measurement:
     metadata: dict[str, object] = field(default_factory=dict)
 
 
-class _ContextMode(Enum):
-    """Sync vs async execution context for timer stack ownership."""
+# --- Internal Types & Protocols ---
 
-    SYNC = "sync"
-    ASYNC = "async"
+_StackEntry = tuple[Measurement, int, int]
+_StackTuple = tuple[_StackEntry, ...]
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+_R_co = TypeVar("_R_co", covariant=True)
 
 
 # pylint: disable=too-few-public-methods
-class _TimedCallable(Protocol[P, R_co]):
+class _TimedCallable(Protocol[_P, _R_co]):
     measurements: deque[Measurement]
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R_co: ...
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R_co: ...
+
+
+# --- Timer Engine ---
 
 
 class Timer:
@@ -176,9 +185,9 @@ class Timer:
 
     Parameters
     ----------
-    metadata : dict or None, optional
-        Key-value metadata for the measurement(s). Stored by reference; each
-        measurement gets a shallow copy at enter time. Defaults to ``{}``.
+    metadata : Mapping or None, optional
+        Initial key-value metadata copied to each measurement. Defaults to
+        ``{}``.
     on_start : callable or None, optional
         Called once per measurement when timing is about to start. Receives the
         :class:`Measurement` (with ``metadata`` set; ``wall_time`` and
@@ -236,57 +245,55 @@ class Timer:
     def __init__(
         self,
         *,
-        metadata: dict[str, object] | None = None,
+        metadata: Mapping[str, object] | None = None,
         on_start: Callable[[Measurement], None] | None = None,
         on_end: Callable[[Measurement], None] | None = None,
         maxlen: int | None = None,
     ) -> None:
         """Init with optional metadata, callbacks, and maxlen (decorator)."""
-        # Store base metadata used to seed each new measurement.
-        self._metadata = metadata if isinstance(metadata, dict) else {}
-
-        # Register lifecycle callbacks invoked at measurement start/end.
+        # Base metadata copied to each new measurement.
+        self._metadata: dict[str, object] = (
+            dict(metadata) if isinstance(metadata, Mapping) else {}
+        )
         self._on_start = on_start
         self._on_end = on_end
-
-        # Keep decorator-mode retention policy for wrapped call history.
         self._maxlen = maxlen
 
-        # Create per-instance context-local stack storage for active timings.
-        self._stack_var: ContextVar[
-            tuple[int | None, deque[tuple[Measurement, int, int]] | None]
-        ] = ContextVar(f"timerun_timer_stack_{id(self)}")
+        # Context-local stack storage for active timings in this thread/task.
+        self._stack_var: ContextVar[tuple[int | None, _StackTuple]] = (
+            ContextVar(f"timerun_timer_stack_{id(self)}", default=(None, ()))
+        )
 
     def _get_context_stack(
         self,
-        mode: _ContextMode,
-    ) -> deque[tuple[Measurement, int, int]]:
-        """Return the stack for the current execution context.
+        *,
+        is_async: bool,
+    ) -> tuple[int, _StackTuple]:
+        """Return the owner id and stack for the current execution context.
 
         "Owner" is the execution identity that owns the stack: thread id in
-        sync mode, task id in async mode. See :class:`_ContextMode`.
-        Binds (owner_id, stack) for this context when the context has no
-        bound stack yet (e.g. first use in this thread/task), so callers
-        always get the stack for this owner (possibly empty).
+        sync mode, task id in async mode. Returns (owner_id, stack) if
+        already bound to this owner, or (owner_id, ()) if uninitialized
+        or inherited from another task/thread.
 
         Parameters
         ----------
-        mode : _ContextMode
-            SYNC for thread-local, ASYNC for task-local stack.
+        is_async : bool
+            True for task-local async stack, False for thread-local sync stack.
 
         Returns
         -------
-        deque
-            The stack for this owner.
+        tuple
+            Tuple of (owner_id, stack) where stack is an immutable tuple.
 
         Raises
         ------
         RuntimeError
-            If mode is ASYNC and there is no current asyncio task.
+            If is_async is True and there is no current asyncio task.
 
         """
         # Resolve owner id for this context (thread or task).
-        if mode is _ContextMode.ASYNC:
+        if is_async:
             task = current_task()
             if task is None:
                 msg = "no current asyncio task"
@@ -295,15 +302,17 @@ class Timer:
         else:
             owner_id = id(current_thread())
 
-        # Get or bind stack for this context and return it.
-        owner, stack = self._stack_var.get((None, None))
-        if owner != owner_id or stack is None:
-            stack = deque()
-            self._stack_var.set((owner_id, stack))
-        return stack
+        # Get stack for this context if owned by this caller, else empty.
+        owner, stack = self._stack_var.get()
+        return (owner_id, stack) if owner == owner_id else (owner_id, ())
 
-    def _enter(self, mode: _ContextMode) -> Measurement:
+    def _enter(self, *, is_async: bool) -> Measurement:
         """Start a measurement and push it onto the context stack.
+
+        Parameters
+        ----------
+        is_async : bool
+            Whether entering from an async context.
 
         Returns
         -------
@@ -317,18 +326,21 @@ class Timer:
             self._on_start(measurement)
 
         # Push onto context stack and return.
-        stack = self._get_context_stack(mode)
+        owner_id, stack = self._get_context_stack(is_async=is_async)
         wall_start = perf_counter_ns()
-        cpu_start = (
-            thread_time_ns()
-            if mode is _ContextMode.SYNC
-            else process_time_ns()
+        cpu_start = thread_time_ns()
+        self._stack_var.set(
+            (owner_id, (*stack, (measurement, wall_start, cpu_start))),
         )
-        stack.append((measurement, wall_start, cpu_start))
         return measurement
 
-    def _exit(self, mode: _ContextMode) -> None:
+    def _exit(self, *, is_async: bool) -> None:
         """Finalize and pop the latest measurement from the context stack.
+
+        Parameters
+        ----------
+        is_async : bool
+            Whether exiting from an async context.
 
         Raises
         ------
@@ -337,19 +349,16 @@ class Timer:
 
         """
         # Capture end timestamps before popping.
-        cpu_end = (
-            thread_time_ns()
-            if mode is _ContextMode.SYNC
-            else process_time_ns()
-        )
+        cpu_end = thread_time_ns()
         wall_end = perf_counter_ns()
 
         # Pop measurement or raise if no matching enter.
-        stack = self._get_context_stack(mode)
+        owner_id, stack = self._get_context_stack(is_async=is_async)
         if not stack:
             msg = "__exit__ called without a matching __enter__"
             raise RuntimeError(msg)
-        measurement, wall_start, cpu_start = stack.pop()
+        measurement, wall_start, cpu_start = stack[-1]
+        self._stack_var.set((owner_id, stack[:-1]))
 
         # Set spans on measurement and run on_end callback if set.
         measurement.wall_time = TimeSpan(start=wall_start, end=wall_end)
@@ -359,7 +368,7 @@ class Timer:
 
     def __enter__(self) -> Measurement:
         """Start timing; return the measurement record."""
-        return self._enter(_ContextMode.SYNC)
+        return self._enter(is_async=False)
 
     def __exit__(
         self,
@@ -368,12 +377,12 @@ class Timer:
         exc_tb: TracebackType | None,
     ) -> Literal[False]:
         """Stop timing; update the measurement."""
-        self._exit(_ContextMode.SYNC)
+        self._exit(is_async=False)
         return False
 
     async def __aenter__(self) -> Measurement:
         """Start timing (async); return the measurement record."""
-        return self._enter(_ContextMode.ASYNC)
+        return self._enter(is_async=True)
 
     async def __aexit__(
         self,
@@ -382,32 +391,100 @@ class Timer:
         exc_tb: TracebackType | None,
     ) -> Literal[False]:
         """Stop timing (async); update the measurement."""
-        self._exit(_ContextMode.ASYNC)
+        self._exit(is_async=True)
         return False
 
-    @overload
+    def _wrap_async_gen(
+        self,
+        f: Callable[_P, AsyncGenerator[_R, None]],
+        append_measurement: Callable[[Measurement], None],
+    ) -> Callable[_P, AsyncGenerator[_R, None]]:
+        """Wrap an async generator function with timing."""
+
+        @wraps(f)
+        async def wrapper(
+            *args: _P.args,
+            **kwargs: _P.kwargs,
+        ) -> AsyncGenerator[_R, None]:
+            m: Measurement | None = None
+            try:
+                async with self as m:
+                    async for x in f(*args, **kwargs):
+                        yield x
+            finally:
+                if isinstance(m, Measurement):
+                    append_measurement(m)
+
+        return wrapper
+
+    def _wrap_coroutine(
+        self,
+        f: Callable[_P, Awaitable[_R]],
+        append_measurement: Callable[[Measurement], None],
+    ) -> Callable[_P, Coroutine[None, None, _R]]:
+        """Wrap a coroutine function with timing."""
+
+        @wraps(f)
+        async def wrapper(
+            *args: _P.args,
+            **kwargs: _P.kwargs,
+        ) -> _R:
+            m: Measurement | None = None
+            try:
+                async with self as m:
+                    return await f(*args, **kwargs)
+            finally:
+                if isinstance(m, Measurement):
+                    append_measurement(m)
+
+        return wrapper
+
+    def _wrap_generator(
+        self,
+        f: Callable[_P, Generator[_R, None, None]],
+        append_measurement: Callable[[Measurement], None],
+    ) -> Callable[_P, Generator[_R, None, None]]:
+        """Wrap a generator function with timing."""
+
+        @wraps(f)
+        def wrapper(
+            *args: _P.args,
+            **kwargs: _P.kwargs,
+        ) -> Generator[_R, None, None]:
+            m: Measurement | None = None
+            try:
+                with self as m:
+                    yield from f(*args, **kwargs)
+            finally:
+                if isinstance(m, Measurement):
+                    append_measurement(m)
+
+        return wrapper
+
+    def _wrap_sync(
+        self,
+        f: Callable[_P, _R],
+        append_measurement: Callable[[Measurement], None],
+    ) -> Callable[_P, _R]:
+        """Wrap a synchronous function with timing."""
+
+        @wraps(f)
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+            m: Measurement | None = None
+            try:
+                with self as m:
+                    return f(*args, **kwargs)
+            finally:
+                if isinstance(m, Measurement):
+                    append_measurement(m)
+
+        return wrapper
+
     def __call__(
         self,
-        f: Callable[P, AsyncGenerator[Y, None]],
-    ) -> _TimedCallable[P, AsyncGenerator[Y, None]]: ...
-
-    @overload
-    def __call__(
-        self,
-        f: Callable[P, Generator[Y, None, None]],
-    ) -> _TimedCallable[P, Generator[Y, None, None]]: ...
-
-    @overload
-    def __call__(
-        self,
-        f: Callable[P, R],
-    ) -> _TimedCallable[P, R]: ...
-
-    def __call__(  # noqa: C901
-        self,
-        f: Callable[P, R],
-    ) -> _TimedCallable[P, R]:
-        """When given a callable, wrap it with timing (decorator usage)."""
+        f: Callable[_P, _R],
+    ) -> _TimedCallable[_P, _R]:
+        """Wrap a callable with timing (decorator usage)."""
         # Shared state and helper for all wrapper branches.
         measurements: deque[Measurement] = deque(maxlen=self._maxlen)
         lock = Lock()
@@ -417,77 +494,28 @@ class Timer:
                 measurements.append(m)
 
         # Build wrapper by callable type: async gen, coroutine, sync gen, sync.
+        wrapper: Callable[_P, object]
         if isasyncgenfunction(f):
-
-            @wraps(f)
-            async def wrapper(
-                *args: P.args,
-                **kwargs: P.kwargs,
-            ) -> AsyncGenerator[Y, None]:
-                inner = cast(
-                    "Callable[P, AsyncGenerator[Y, None]]",
-                    f,
-                )(*args, **kwargs)
-                recorded: list[Measurement] = []
-                try:
-                    async with self as m:
-                        recorded.append(m)
-                        async for x in inner:
-                            yield x
-                finally:
-                    if recorded:
-                        append_measurement(recorded[0])
-
+            wrapper = self._wrap_async_gen(
+                cast("Callable[_P, AsyncGenerator[_R, None]]", f),
+                append_measurement,
+            )
         elif iscoroutinefunction(f):
-
-            @wraps(f)
-            async def wrapper(
-                *args: P.args,
-                **kwargs: P.kwargs,
-            ) -> R:
-                m: Measurement | None = None
-                try:
-                    async with self as m:
-                        return cast("R", await f(*args, **kwargs))
-                finally:
-                    if m is not None:
-                        append_measurement(m)
-
+            wrapper = self._wrap_coroutine(
+                cast("Callable[_P, Awaitable[_R]]", f),
+                append_measurement,
+            )
         elif isgeneratorfunction(f):
-
-            @wraps(f)
-            def wrapper(
-                *args: P.args,
-                **kwargs: P.kwargs,
-            ) -> Generator[Y, None, None]:
-                inner = cast(
-                    "Callable[P, Generator[Y, None, None]]",
-                    f,
-                )(*args, **kwargs)
-                recorded: list[Measurement] = []
-                try:
-                    with self as m:
-                        recorded.append(m)
-                        yield from inner
-                finally:
-                    if recorded:
-                        append_measurement(recorded[0])
-
+            wrapper = self._wrap_generator(
+                cast("Callable[_P, Generator[_R, None, None]]", f),
+                append_measurement,
+            )
         else:
-
-            @wraps(f)
-            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                m: Measurement | None = None
-                try:
-                    with self as m:
-                        return f(*args, **kwargs)
-                finally:
-                    if m is not None:
-                        append_measurement(m)
+            wrapper = self._wrap_sync(f, append_measurement)
 
         # Attach measurements to wrapper and return.
         wrapped = cast(
-            "_TimedCallable[P, R]",
+            "_TimedCallable[_P, _R]",
             wrapper,
         )
         wrapped.measurements = measurements
