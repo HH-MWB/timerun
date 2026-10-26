@@ -4,6 +4,7 @@ Feature: Package version
   I want to read the package version programmatically,
   so that I can check compatibility or use it in automation.
 
-  Scenario: Package version is readable
+  Scenario: Package version is readable and follows semantic versioning
+    Given the timerun package is available
     When I read the package version
-    Then the version is a non-empty string
+    Then the version is a valid semantic version string

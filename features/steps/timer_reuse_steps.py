@@ -25,9 +25,9 @@ def step_given_thread_sleep(context: Context, duration_ns: int) -> None:
     context.thread_sleep_ns = duration_ns
 
 
-@given("a Timer shared by both tasks")
+@given("a shared Timer")
 def step_given_shared_timer(context: Context) -> None:
-    """Create a Timer instance shared by task A and task B."""
+    """Create a shared Timer instance."""
     context.shared_timer = timerun.Timer()
 
 
@@ -93,20 +93,6 @@ def step_measure_blocks_from_threads(
         context.thread_measurements = [f.result() for f in futures]
 
 
-@when("I measure two sequential blocks with the same Timer instance")
-def step_measure_two_sequential_blocks(context: Context) -> None:
-    """Measure two sequential blocks."""
-    cm = timerun.Timer()
-
-    # First block.
-    with cm as context.first_measurement:
-        time.sleep(context.first_block_ns / 1e9)
-
-    # Second block.
-    with cm as context.second_measurement:
-        time.sleep(context.second_block_ns / 1e9)
-
-
 @when("I measure nested blocks with the same Timer instance")
 def step_measure_nested_blocks(context: Context) -> None:
     """Measure nested blocks."""
@@ -137,7 +123,7 @@ def step_run_both_tasks_concurrently(context: Context) -> None:
     context.second_measurement = results[1]
 
 
-@when("I decorate it with Timer with maxlen {maxlen:n}")
+@when("I decorate the function with a Timer having maxlen {maxlen:n}")
 def step_when_decorate_maxlen(context: Context, maxlen: int) -> None:
     """Store maxlen for next step."""
     context.func_maxlen = maxlen
@@ -219,12 +205,6 @@ def step_measurements_from_different_threads(context: Context) -> None:
     )
 
 
-@given("a Timer shared by an outer task and two child tasks")
-def step_shared_timer_with_child_tasks(context: Context) -> None:
-    """Create a shared Timer instance for outer and child tasks."""
-    context.shared_timer = timerun.Timer()
-
-
 @given("child task {which:w} runs for {duration_ns:n} nanoseconds")
 def step_child_task_duration(
     context: Context,
@@ -235,13 +215,13 @@ def step_child_task_duration(
     setattr(context, f"child_task_{which}_duration_ns", duration_ns)
 
 
-@given("a CPU-bound thread running for {duration_ns:n} nanoseconds")
+@given("a CPU-bound thread that runs for {duration_ns:n} nanoseconds")
 def step_cpu_bound_thread(context: Context, duration_ns: int) -> None:
     """Store duration for CPU-bound thread."""
     context.cpu_thread_duration_ns = duration_ns
 
 
-@given("an idle sleeping thread running for {duration_ns:n} nanoseconds")
+@given("an idle sleeping thread that runs for {duration_ns:n} nanoseconds")
 def step_idle_sleeping_thread(context: Context, duration_ns: int) -> None:
     """Store duration for idle sleeping thread."""
     context.idle_thread_duration_ns = duration_ns
@@ -306,56 +286,3 @@ def step_measure_both_threads_concurrently(context: Context) -> None:
     t2.join()
 
     context.idle_thread_measurement = m_idle
-
-
-@then(
-    "the {which:w} child task's wall time duration is within "
-    "{expected_ns:n} nanoseconds",
-)
-def step_child_task_wall_time_within(
-    context: Context,
-    which: str,
-    expected_ns: int,
-) -> None:
-    """Assert child task duration is within expected bound."""
-    m = getattr(context, f"child_task_{which}_measurement")
-    assert m.wall_time is not None
-    assert m.wall_time.duration <= expected_ns, (
-        f"{which} task measured {m.wall_time.duration}ns, "
-        f"expected <= {expected_ns}ns"
-    )
-
-
-@then(
-    "the {which:w} child task's wall time duration is at least "
-    "{expected_ns:n} nanoseconds",
-)
-def step_child_task_wall_time_at_least(
-    context: Context,
-    which: str,
-    expected_ns: int,
-) -> None:
-    """Assert child task duration is at least expected bound."""
-    m = getattr(context, f"child_task_{which}_measurement")
-    assert m.wall_time is not None
-    assert m.wall_time.duration >= expected_ns, (
-        f"{which} task measured {m.wall_time.duration}ns, "
-        f"expected >= {expected_ns}ns"
-    )
-
-
-@then(
-    "the idle sleeping thread CPU time duration is at most "
-    "{expected_ns:n} nanoseconds",
-)
-def step_idle_thread_cpu_time_at_most(
-    context: Context,
-    expected_ns: int,
-) -> None:
-    """Assert idle thread CPU time is at most expected bound."""
-    m = context.idle_thread_measurement
-    assert m.cpu_time is not None
-    assert m.cpu_time.duration <= expected_ns, (
-        f"Idle thread CPU time was {m.cpu_time.duration}ns, "
-        f"expected <= {expected_ns}ns"
-    )

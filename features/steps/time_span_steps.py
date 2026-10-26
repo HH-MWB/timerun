@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import operator
+from dataclasses import FrozenInstanceError
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -35,24 +36,19 @@ register_type(
 
 
 @given("a time span from {start:n} to {end:n}")
-def step_given_time_span(context: Context, start: int, end: int) -> None:
-    """Create TimeSpan, store on context."""
-    context.time_span = timerun.TimeSpan(start=start, end=end)
+@given("a time span {name:w} from {start:n} to {end:n}")
+def step_given_time_span(
+    context: Context,
+    start: int,
+    end: int,
+    name: str | None = None,
+) -> None:
+    """Create TimeSpan, store on context (as time_span or named)."""
+    attr = "time_span" if name is None else f"time_span_{name.lower()}"
+    setattr(context, attr, timerun.TimeSpan(start=start, end=end))
 
 
-@given("a time span A from {start:n} to {end:n}")
-def step_given_time_span_a(context: Context, start: int, end: int) -> None:
-    """Create time span A."""
-    context.time_span_a = timerun.TimeSpan(start=start, end=end)
-
-
-@given("a time span B from {start:n} to {end:n}")
-def step_given_time_span_b(context: Context, start: int, end: int) -> None:
-    """Create time span B."""
-    context.time_span_b = timerun.TimeSpan(start=start, end=end)
-
-
-@given("span {name:w} of {duration:n} nanoseconds")
+@given("span {name:w} with duration {duration:n} nanoseconds")
 def step_given_span_of_duration(
     context: Context,
     name: str,
@@ -69,6 +65,36 @@ def step_given_span_of_duration(
 # --- When ---
 
 
+@when("I read the duration")
+def step_when_read_duration(context: Context) -> None:
+    """Read the duration property."""
+    context.read_duration = context.time_span.duration
+
+
+@when("I read the start and end values")
+def step_when_read_start_end(context: Context) -> None:
+    """Read start and end values."""
+    context.read_start = context.time_span.start
+    context.read_end = context.time_span.end
+
+
+@when("I read the duration as a timedelta")
+def step_when_read_timedelta(context: Context) -> None:
+    """Read duration as timedelta."""
+    context.read_timedelta = context.time_span.timedelta
+
+
+@when("I compare time span A and time span B")
+def step_when_compare_spans(context: Context) -> None:
+    """Compare two spans for equality."""
+    context.spans_equal = context.time_span_a == context.time_span_b
+
+
+@when("I compare the durations of span A and span B")
+def step_when_compare_durations(_: Context) -> None:
+    """Compare durations of two spans."""
+
+
 @when("I try to create a time span from {start:n} to {end:n}")
 def step_try_create_time_span(context: Context, start: int, end: int) -> None:
     """Create TimeSpan; store exception."""
@@ -76,6 +102,15 @@ def step_try_create_time_span(context: Context, start: int, end: int) -> None:
         timerun.TimeSpan(start=start, end=end)
     except ValueError as e:
         context.exception = e
+
+
+@when("I try to modify the start value")
+def step_when_modify_start_value(context: Context) -> None:
+    """Attempt modifying frozen start attribute; store exception."""
+    try:
+        context.time_span.start = 999
+    except FrozenInstanceError as exc:
+        context.exception = exc
 
 
 # --- Then ---
@@ -87,7 +122,7 @@ def step_time_span_duration_is(context: Context, expected: int) -> None:
     assert context.time_span.duration == expected
 
 
-@then("the timedelta is {seconds:f} seconds in standard Python timedelta type")
+@then("the timedelta is {seconds:f} seconds")
 def step_timedelta_is_seconds_standard_type(
     context: Context,
     seconds: float,
@@ -98,7 +133,7 @@ def step_timedelta_is_seconds_standard_type(
     assert result == timedelta(seconds=seconds)
 
 
-@then("time span A duration {relation:Relation} time span B duration")
+@then("time span A's duration {relation:Relation} time span B's duration")
 def step_time_span_a_duration_relation_b(
     context: Context,
     relation: str,
@@ -126,8 +161,8 @@ def step_time_span_value_is(
     assert getattr(context.time_span, which) == expected
 
 
-@then("putting both spans in a set produces {count:n} elements")
-def step_spans_in_set_produces(context: Context, count: int) -> None:
+@then("both spans are distinct when collected in a set")
+def step_spans_in_set_produces(context: Context, count: int = 2) -> None:
     """Assert putting span A and span B in a set produces count elements."""
     span_set = {context.time_span_a, context.time_span_b}
     assert len(span_set) == count, (

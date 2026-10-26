@@ -1,19 +1,21 @@
-"""Behave environment hooks.
+"""Behave environment hooks."""
 
-Runs before/after the test run, features, or scenarios.
-https://behave.readthedocs.io/en/stable/tutorial.html#environmental-controls
-"""
+from __future__ import annotations
 
-# Example hooks (uncomment and customize if needed):
-#
-# def before_all(context):
-#     pass
-#
-# def after_all(context):
-#     pass
-#
-# def before_scenario(context, scenario):
-#     pass
-#
-# def after_scenario(context, scenario):
-#     pass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from behave.model import Scenario
+    from behave.runner import Context
+
+
+def before_scenario(context: Context, _: Scenario) -> None:
+    """Reset context attributes before each scenario."""
+    context.measurement = None
+    context.exception = None
+
+
+def after_scenario(context: Context, _: Scenario) -> None:
+    """Clean up open resources after each scenario."""
+    if hasattr(context, "loop") and not context.loop.is_closed():
+        context.loop.close()

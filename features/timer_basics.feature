@@ -4,45 +4,49 @@ Feature: Basic timing
   I want to time code execution (blocks, functions, and generators),
   so that I get accurate wall time and CPU time measurements.
 
-  Scenario: Blocking sleep with `with` yields wall time and near-zero CPU time
-    Given a blocking operation that runs for around 5,000,000 nanoseconds
-    When I measure the operation using `with`
-    Then the measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
-    And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
+  Scenario: Measuring synchronous blocking operation yields wall time and minimal CPU time
+    Given a blocking operation that runs for 5,000,000 nanoseconds
+    When I measure the operation
+    Then the measurement's wall time duration is approximately 5,000,000 nanoseconds
+    And the measurement's CPU time duration is approximately 0 nanoseconds
 
-  Scenario: Async sleep with `async with` yields wall time and near-zero CPU time
-    Given an async operation that runs for around 5,000,000 nanoseconds
-    When I measure the async operation using `async with`
-    Then the measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
-    And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
+  Scenario: Measuring asynchronous operation yields wall time and minimal CPU time
+    Given an async operation that runs for 5,000,000 nanoseconds
+    When I measure the operation
+    Then the measurement's wall time duration is approximately 5,000,000 nanoseconds
+    And the measurement's CPU time duration is approximately 0 nanoseconds
 
-  Scenario: CPU-bound block with `with` yields meaningful wall and CPU time
-    Given a CPU-bound operation that runs for around 5,000,000 nanoseconds
-    When I measure the operation using `with`
+  Scenario: Measuring CPU-bound operation records both wall time and CPU time
+    Given a CPU-bound operation that runs for 5,000,000 nanoseconds
+    When I measure the operation
     Then the measurement's wall time duration is at least 5,000,000 nanoseconds
-    And the measurement's CPU time duration is within the configured buffer of 5,000,000 nanoseconds
+    And the measurement's CPU time duration is approximately 5,000,000 nanoseconds
 
-  Scenario: Timing a synchronous sleeping function records real time and minimal CPU time
-    Given a sync function that sleeps for around 5,000,000 nanoseconds
+  Scenario Outline: Timing a <mode> sleeping function records wall time and minimal CPU time
+    Given a <mode> function that sleeps for 5,000,000 nanoseconds
     When I call the decorated function
-    Then the measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
-    And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
+    Then the measurement's wall time duration is approximately 5,000,000 nanoseconds
+    And the measurement's CPU time duration is approximately 0 nanoseconds
 
-  Scenario: Timing an async sleeping function records real time and minimal CPU time
-    Given an async function that sleeps for around 5,000,000 nanoseconds
-    When I call the decorated function
-    Then the measurement's wall time duration is within the configured buffer of 5,000,000 nanoseconds
-    And the measurement's CPU time duration is within the configured buffer of 0 nanoseconds
+    Examples:
+      | mode  |
+      | sync  |
+      | async |
 
-  Scenario: Fully consuming a sync generator records one measurement
-    Given a sync generator that yields 3 items and sleeps 2,500,000 nanoseconds total
+  Scenario Outline: Fully consuming a <mode> generator records one measurement
+    Given a <mode> generator that yields 3 items and sleeps 2,500,000 nanoseconds total
     When I fully consume the decorated generator
-    Then the decorated function's measurements deque has 1 entry
+    Then the decorated function has recorded 1 measurement
 
-  Scenario: Fully consuming an async generator records one measurement
-    Given an async generator that yields 3 items and sleeps 2,500,000 nanoseconds total
-    When I fully consume the decorated generator
-    Then the decorated function's measurements deque has 1 entry
+    Examples:
+      | mode  |
+      | sync  |
+      | async |
+
+  Scenario: Partially consuming a generator records one measurement
+    Given a sync generator that yields 5 items and sleeps 2,000,000 nanoseconds total
+    When I consume only 2 items from the decorated generator
+    Then the decorated function has recorded 1 measurement
 
   Scenario: Decorating a function preserves its return type
     Given a function with a typed return signature

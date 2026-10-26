@@ -2,14 +2,27 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
-from behave import then, when
+from behave import given, then, when
 
 import timerun
 
 if TYPE_CHECKING:
     from behave.runner import Context
+
+SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+.*$")
+
+
+# --- Given ---
+
+
+@given("the timerun package is available")
+def step_timerun_available(_: Context) -> None:
+    """Ensure timerun module is available."""
+    assert timerun is not None
+
 
 # --- When ---
 
@@ -23,8 +36,11 @@ def step_read_version(context: Context) -> None:
 # --- Then ---
 
 
-@then("the version is a non-empty string")
-def step_version_non_empty_string(context: Context) -> None:
-    """Assert version is non-empty string."""
-    assert isinstance(context.version, str)
-    assert len(context.version) > 0
+@then("the version is a valid semantic version string")
+def step_version_is_semver(context: Context) -> None:
+    """Assert version is valid semantic version string."""
+    assert isinstance(context.version, str), "Version is not a string"
+    assert len(context.version) > 0, "Version string is empty"
+    assert SEMVER_PATTERN.match(context.version), (
+        f"Version {context.version!r} does not match semantic version format"
+    )

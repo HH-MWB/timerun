@@ -148,3 +148,7 @@ source = ["timerun"]
 
 [tool.coverage.report]
 fail_under = 100
+
+[tool.behave]
+show_snippets = false
+summary = true

@@ -20,14 +20,21 @@ class CustomAppError(Exception):
 # --- Given ---
 
 
-@given("an on_start callback that raises an application exception")
-def step_on_start_raises(context: Context) -> None:
-    """Set up an on_start callback that raises CustomAppError."""
+@given("a Timer that has not been entered")
+def step_given_timer_not_entered(context: Context) -> None:
+    """Create un-entered timer."""
+    context.timer = timerun.Timer()
+
+
+@given("a {callback_kind} callback that raises an application exception")
+@given("an {callback_kind} callback that raises an application exception")
+def step_callback_raises(context: Context, callback_kind: str) -> None:
+    """Set up a callback that raises CustomAppError."""
 
     def bad_callback(_m: timerun.Measurement) -> None:
         raise CustomAppError
 
-    context.on_start_callback = bad_callback
+    setattr(context, f"{callback_kind}_callback", bad_callback)
 
 
 @given(
@@ -51,11 +58,12 @@ def step_measure_block_raises(context: Context) -> None:
         context.exception = e
 
 
-@when("I call __exit__ on a Timer instance without calling __enter__ first")
+@when("I exit the timer")
 def step_exit_without_enter(context: Context) -> None:
     """Call Timer().__exit__ without __enter__; store error."""
+    timer = getattr(context, "timer", None) or timerun.Timer()
     try:
-        timerun.Timer().__exit__(None, None, None)
+        timer.__exit__(None, None, None)
     except RuntimeError as e:
         context.exception = e
 
@@ -86,39 +94,21 @@ def step_async_with_timer_no_current_task(context: Context) -> None:
     loop.close()
 
 
-@when("I call a decorated function that raises an exception")
+@when("I call the decorated function that raises an exception")
 def step_when_call_raising(context: Context) -> None:
     """Call raising function under Timer(); catch exception."""
 
-    # Define raising function.
     @timerun.Timer()
     def raising() -> None:
         raise ValueError
 
-    # Call and catch exception for Then to assert.
     try:
         raising()
     except ValueError as e:
         context.exception = e
 
-    # Store function and measurement for Then.
     context.decorated_function = raising
     context.measurement = raising.measurements[-1]
-
-
-@when("I call a decorated function with that on_start callback")
-def step_call_decorated_function_with_on_start(context: Context) -> None:
-    """Call a decorated function whose on_start raises; record exception."""
-
-    @timerun.Timer(on_start=context.on_start_callback)
-    def decorated_func() -> int:
-        return 42
-
-    try:
-        decorated_func()
-    except CustomAppError as exc:
-        context.caught_exception = exc
-        context.exception = exc
 
 
 # --- Then ---
@@ -129,29 +119,3 @@ def step_block_yielded_measurement(context: Context) -> None:
     """Assert block produced a measurement."""
     assert context.measurement is not None
     assert context.measurement.wall_time is not None
-
-
-@then("an exception was propagated to the caller")
-def step_exception_propagated(context: Context) -> None:
-    """Assert ValueError was caught."""
-    # Required: an exception was stored.
-    assert hasattr(context, "exception")
-
-    # Must be ValueError.
-    assert isinstance(context.exception, ValueError)
-
-
-@then("the application exception is propagated to the caller")
-def step_application_exception_propagated(context: Context) -> None:
-    """Assert CustomAppError was propagated."""
-    assert hasattr(context, "caught_exception"), "No exception was caught"
-    assert isinstance(context.caught_exception, CustomAppError), (
-        f"Expected CustomAppError, got "
-        f"{type(context.caught_exception).__name__}"
-    )
-
-
-@then("no UnboundLocalError is raised")
-def step_no_unbound_local_error(context: Context) -> None:
-    """Assert no UnboundLocalError occurred."""
-    assert not isinstance(context.caught_exception, UnboundLocalError)
