@@ -73,7 +73,7 @@ init: ## Set up dev env. Prompts for Python, or: make init PYTHON=python3.10
 	fi; \
 	if [ ! -d "$(VENV_DIR)" ]; then $$py -m venv "$(VENV_DIR)" >/dev/null; fi
 	@$(VENV_BIN)/pip install --upgrade pip >/dev/null
-	@$(VENV_BIN)/pip install -e . --group dev >/dev/null
+	@$(VENV_BIN)/pip install -e . --group dev --group docs >/dev/null
 	@$(VENV_BIN)/pre-commit install >/dev/null
 
 .PHONY: clean

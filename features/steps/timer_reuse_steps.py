@@ -15,7 +15,6 @@ import timerun
 if TYPE_CHECKING:
     from behave.runner import Context
 
-
 # --- Given ---
 
 
@@ -66,6 +65,28 @@ def step_given_block_duration(
     setattr(context, f"{which}_block_ns", duration_ns)
 
 
+@given("child task {which:w} runs for {duration_ns:n} nanoseconds")
+def step_child_task_duration(
+    context: Context,
+    which: str,
+    duration_ns: int,
+) -> None:
+    """Store duration for child task."""
+    setattr(context, f"child_task_{which}_duration_ns", duration_ns)
+
+
+@given("a CPU-bound thread that runs for {duration_ns:n} nanoseconds")
+def step_cpu_bound_thread(context: Context, duration_ns: int) -> None:
+    """Store duration for CPU-bound thread."""
+    context.cpu_thread_duration_ns = duration_ns
+
+
+@given("an idle sleeping thread that runs for {duration_ns:n} nanoseconds")
+def step_idle_sleeping_thread(context: Context, duration_ns: int) -> None:
+    """Store duration for idle sleeping thread."""
+    context.idle_thread_duration_ns = duration_ns
+
+
 # --- When ---
 
 
@@ -81,13 +102,11 @@ def step_measure_blocks_from_threads(
     context.thread_count = thread_count
     cm = timerun.Timer()
 
-    # Worker: enter timer, sleep, return measurement.
     def run() -> timerun.Measurement:
         with cm as m:
             time.sleep(context.thread_sleep_ns / 1e9)
         return m
 
-    # Run thread_count workers and collect measurements.
     with ThreadPoolExecutor(max_workers=thread_count) as ex:
         futures = [ex.submit(run) for _ in range(thread_count)]
         context.thread_measurements = [f.result() for f in futures]
@@ -137,7 +156,6 @@ def step_when_call_three_times(context: Context, times: int) -> None:
     def sync_func() -> None:
         time.sleep(context.func_duration_ns / 1e9)
 
-    # Call N times; only last maxlen measurements kept.
     for _ in range(times):
         sync_func()
 
@@ -157,74 +175,13 @@ def step_when_call_from_threads(context: Context, thread_count: int) -> None:
     def run() -> None:
         sync_func()
 
-    # Run thread_count workers concurrently.
     with ThreadPoolExecutor(max_workers=thread_count) as ex:
         futures = [ex.submit(run) for _ in range(thread_count)]
         for f in futures:
             f.result()
 
-    # Store for Then.
     context.decorated_function = sync_func
     context.thread_count = thread_count
-
-
-# --- Then ---
-
-
-@then(
-    "the outer measurement's wall time duration is at least the inner "
-    "measurement's wall time duration",
-)
-def step_outer_wall_at_least_inner(context: Context) -> None:
-    """Assert outer wall >= inner."""
-    # Required context validation: both have wall_time.
-    assert context.outer_measurement.wall_time is not None
-    assert context.inner_measurement.wall_time is not None
-
-    # Duration: outer >= inner.
-    outer_d = context.outer_measurement.wall_time.duration
-    inner_d = context.inner_measurement.wall_time.duration
-    assert outer_d >= inner_d, f"outer {outer_d} < inner {inner_d}"
-
-
-@then("the measurements are from different threads")
-def step_measurements_from_different_threads(context: Context) -> None:
-    """Assert thread_count distinct measurements."""
-    # Required context validation.
-    measurements = context.thread_measurements
-
-    # Exactly thread_count measurements.
-    assert len(measurements) == context.thread_count, (
-        f"expected {context.thread_count} measurements, "
-        f"got {len(measurements)}"
-    )
-
-    # All distinct (one measurement per thread).
-    assert len(measurements) == len({id(m) for m in measurements}), (
-        "measurements are not all distinct (one per thread)"
-    )
-
-
-@given("child task {which:w} runs for {duration_ns:n} nanoseconds")
-def step_child_task_duration(
-    context: Context,
-    which: str,
-    duration_ns: int,
-) -> None:
-    """Store duration for child task."""
-    setattr(context, f"child_task_{which}_duration_ns", duration_ns)
-
-
-@given("a CPU-bound thread that runs for {duration_ns:n} nanoseconds")
-def step_cpu_bound_thread(context: Context, duration_ns: int) -> None:
-    """Store duration for CPU-bound thread."""
-    context.cpu_thread_duration_ns = duration_ns
-
-
-@given("an idle sleeping thread that runs for {duration_ns:n} nanoseconds")
-def step_idle_sleeping_thread(context: Context, duration_ns: int) -> None:
-    """Store duration for idle sleeping thread."""
-    context.idle_thread_duration_ns = duration_ns
 
 
 @when(
@@ -286,3 +243,35 @@ def step_measure_both_threads_concurrently(context: Context) -> None:
     t2.join()
 
     context.idle_thread_measurement = m_idle
+
+
+# --- Then ---
+
+
+@then(
+    "the outer measurement's wall time duration is at least the inner "
+    "measurement's wall time duration",
+)
+def step_outer_wall_at_least_inner(context: Context) -> None:
+    """Assert outer wall >= inner."""
+    assert context.outer_measurement.wall_time is not None
+    assert context.inner_measurement.wall_time is not None
+
+    outer_d = context.outer_measurement.wall_time.duration
+    inner_d = context.inner_measurement.wall_time.duration
+    assert outer_d >= inner_d, f"outer {outer_d} < inner {inner_d}"
+
+
+@then("the measurements are from different threads")
+def step_measurements_from_different_threads(context: Context) -> None:
+    """Assert thread_count distinct measurements."""
+    measurements = context.thread_measurements
+
+    assert len(measurements) == context.thread_count, (
+        f"expected {context.thread_count} measurements, "
+        f"got {len(measurements)}"
+    )
+
+    assert len(measurements) == len({id(m) for m in measurements}), (
+        "measurements are not all distinct (one per thread)"
+    )

@@ -13,8 +13,33 @@ if TYPE_CHECKING:
     from behave.runner import Context
 
 
+# --- Constants & Helpers ---
+
+
 class CustomAppError(Exception):
     """Custom domain exception for testing callback error propagation."""
+
+
+def _run_timer_coro_without_task(
+    context: Context,
+    loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Run timer coroutine directly without an active Task."""
+
+    async def use_timer() -> None:
+        async with timerun.Timer():
+            pass
+
+    coro = use_timer()
+    try:
+        coro.send(None)
+    except RuntimeError as e:
+        context.exception = e
+    except StopIteration:
+        pass
+    finally:
+        coro.close()
+    loop.stop()
 
 
 # --- Given ---
@@ -72,24 +97,7 @@ def step_exit_without_enter(context: Context) -> None:
 def step_async_with_timer_no_current_task(context: Context) -> None:
     """Async with Timer from call_soon (no current task); store error."""
     loop = context.loop
-
-    def callback() -> None:
-        async def use_timer() -> None:
-            async with timerun.Timer():
-                pass
-
-        coro = use_timer()
-        try:
-            coro.send(None)
-        except RuntimeError as e:
-            context.exception = e
-        except StopIteration:
-            pass
-        finally:
-            coro.close()
-        loop.stop()
-
-    loop.call_soon(callback)
+    loop.call_soon(lambda: _run_timer_coro_without_task(context, loop))
     loop.run_forever()
     loop.close()
 

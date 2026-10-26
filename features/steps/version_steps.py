@@ -12,6 +12,8 @@ import timerun
 if TYPE_CHECKING:
     from behave.runner import Context
 
+# --- Constants & Helpers ---
+
 SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+.*$")
 
 

@@ -36,6 +36,11 @@ def step_given_metadata_add_in_first(
     context.metadata_add_in_first = (key, value)
 
 
+# --- When ---
+# Actions for this feature use shared steps in common_steps.py
+# (e.g. "When I measure a code block").
+
+
 # --- Then ---
 
 

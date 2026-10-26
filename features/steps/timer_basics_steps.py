@@ -14,6 +14,49 @@ import timerun
 if TYPE_CHECKING:
     from behave.runner import Context
 
+# --- Helpers ---
+
+
+def _consume_async_gen(
+    count: int,
+    per_sleep: int,
+) -> tuple[object, timerun.Measurement]:
+    """Create and fully consume a timed async generator."""
+
+    @timerun.Timer()
+    async def async_gen() -> object:
+        for i in range(count):
+            await asyncio.sleep(per_sleep / 1e9)
+            yield i
+
+    async def run() -> None:
+        async for _ in async_gen():
+            pass
+
+    asyncio.run(run())
+    return async_gen, async_gen.measurements[-1]
+
+
+def _consume_sync_gen(
+    count: int,
+    per_sleep: int,
+    limit: int | None = None,
+) -> tuple[object, timerun.Measurement]:
+    """Create and consume a timed sync generator up to limit (or all)."""
+
+    @timerun.Timer()
+    def sync_gen() -> object:
+        for i in range(count):
+            time.sleep(per_sleep / 1e9)
+            yield i
+
+    for idx, _ in enumerate(sync_gen(), start=1):
+        if limit is not None and idx == limit:
+            break
+
+    return sync_gen, sync_gen.measurements[-1]
+
+
 # --- Given ---
 
 
@@ -87,46 +130,6 @@ def step_measure_operation(context: Context) -> None:
     else:
         with timerun.Timer() as context.measurement:
             time.sleep(context.operation_duration_ns / 1e9)
-
-
-def _consume_async_gen(
-    count: int,
-    per_sleep: int,
-) -> tuple[object, timerun.Measurement]:
-    """Create and fully consume a timed async generator."""
-
-    @timerun.Timer()
-    async def async_gen() -> object:
-        for i in range(count):
-            await asyncio.sleep(per_sleep / 1e9)
-            yield i
-
-    async def run() -> None:
-        async for _ in async_gen():
-            pass
-
-    asyncio.run(run())
-    return async_gen, async_gen.measurements[-1]
-
-
-def _consume_sync_gen(
-    count: int,
-    per_sleep: int,
-    limit: int | None = None,
-) -> tuple[object, timerun.Measurement]:
-    """Create and consume a timed sync generator up to limit (or all)."""
-
-    @timerun.Timer()
-    def sync_gen() -> object:
-        for i in range(count):
-            time.sleep(per_sleep / 1e9)
-            yield i
-
-    for idx, _ in enumerate(sync_gen(), start=1):
-        if limit is not None and idx == limit:
-            break
-
-    return sync_gen, sync_gen.measurements[-1]
 
 
 @when("I fully consume the decorated generator")

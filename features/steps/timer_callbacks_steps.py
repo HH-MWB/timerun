@@ -45,6 +45,11 @@ def step_given_callback_records_timing_state(
     setattr(context, f"{callback_kind}_callback", record_state)
 
 
+# --- When ---
+# Actions for this feature use shared steps in common_steps.py
+# (e.g. "When I measure a code block").
+
+
 # --- Then ---
 
 

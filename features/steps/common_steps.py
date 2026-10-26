@@ -61,67 +61,6 @@ def _get_span_duration(measurement: timerun.Measurement, kind: str) -> int:
     return span.duration
 
 
-# --- Given ---
-
-
-@given(
-    "a {kind} function that sleeps for {duration_ns:n} nanoseconds",
-)
-@given(
-    "an {kind} function that sleeps for {duration_ns:n} nanoseconds",
-)
-def step_given_func_sleep(
-    context: Context,
-    kind: str,
-    duration_ns: int,
-) -> None:
-    """Store func kind and duration."""
-    context.func_duration_ns = duration_ns
-    context.func_kind = kind
-
-
-# --- When ---
-
-
-@when("I measure a code block")
-def step_measure_code_block(context: Context) -> None:
-    """Measure a code block with options configured on context."""
-    kwargs: dict[str, Any] = {}
-    if hasattr(context, "metadata"):
-        kwargs["metadata"] = context.metadata
-    if hasattr(context, "on_start_callback"):
-        kwargs["on_start"] = context.on_start_callback
-    if hasattr(context, "on_end_callback"):
-        kwargs["on_end"] = context.on_end_callback
-
-    try:
-        with timerun.Timer(**kwargs) as context.measurement:
-            pass
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:  # noqa: BLE001
-        context.exception = exc
-
-
-@when("I measure two sequential blocks with the same Timer instance")
-def step_measure_two_sequential_blocks(context: Context) -> None:
-    """Measure two sequential blocks with a shared Timer."""
-    kwargs: dict[str, Any] = {}
-    if hasattr(context, "metadata"):
-        kwargs["metadata"] = context.metadata
-    cm = timerun.Timer(**kwargs)
-
-    with cm as context.first_measurement:
-        if hasattr(context, "metadata_add_in_first"):
-            k, v = context.metadata_add_in_first
-            context.first_measurement.metadata[k] = v
-        if hasattr(context, "first_block_ns"):
-            time.sleep(context.first_block_ns / 1e9)
-
-    with cm as context.second_measurement:
-        if hasattr(context, "second_block_ns"):
-            time.sleep(context.second_block_ns / 1e9)
-
-
 def _extract_timer_kwargs(context: Context) -> dict[str, Any]:
     """Extract timer keyword arguments from context."""
     kwargs: dict[str, Any] = {}
@@ -129,6 +68,8 @@ def _extract_timer_kwargs(context: Context) -> dict[str, Any]:
         kwargs["metadata"] = context.metadata
     if hasattr(context, "on_start_callback"):
         kwargs["on_start"] = context.on_start_callback
+    if hasattr(context, "on_end_callback"):
+        kwargs["on_end"] = context.on_end_callback
     return kwargs
 
 
@@ -160,6 +101,60 @@ def _run_timed_sync_fn(
 
     sync_fn()
     return sync_fn, sync_fn.measurements[-1]
+
+
+# --- Given ---
+
+
+@given(
+    "a {kind} function that sleeps for {duration_ns:n} nanoseconds",
+)
+@given(
+    "an {kind} function that sleeps for {duration_ns:n} nanoseconds",
+)
+def step_given_func_sleep(
+    context: Context,
+    kind: str,
+    duration_ns: int,
+) -> None:
+    """Store func kind and duration."""
+    context.func_duration_ns = duration_ns
+    context.func_kind = kind
+
+
+# --- When ---
+
+
+@when("I measure a code block")
+def step_measure_code_block(context: Context) -> None:
+    """Measure a code block with options configured on context."""
+    kwargs = _extract_timer_kwargs(context)
+    try:
+        with timerun.Timer(**kwargs) as context.measurement:
+            pass
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # noqa: BLE001
+        context.exception = exc
+
+
+@when("I measure two sequential blocks with the same Timer instance")
+def step_measure_two_sequential_blocks(context: Context) -> None:
+    """Measure two sequential blocks with a shared Timer."""
+    kwargs: dict[str, Any] = {}
+    if hasattr(context, "metadata"):
+        kwargs["metadata"] = context.metadata
+    cm = timerun.Timer(**kwargs)
+
+    with cm as context.first_measurement:
+        if hasattr(context, "metadata_add_in_first"):
+            k, v = context.metadata_add_in_first
+            context.first_measurement.metadata[k] = v
+        if hasattr(context, "first_block_ns"):
+            time.sleep(context.first_block_ns / 1e9)
+
+    with cm as context.second_measurement:
+        if hasattr(context, "second_block_ns"):
+            time.sleep(context.second_block_ns / 1e9)
 
 
 @when("I call the decorated function")

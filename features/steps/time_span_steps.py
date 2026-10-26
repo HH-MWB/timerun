@@ -15,6 +15,8 @@ import timerun
 if TYPE_CHECKING:
     from behave.runner import Context
 
+# --- Constants & Helpers ---
+
 # Gherkin relation phrases to operator functions for span comparison.
 RELATION_OPERATORS = {
     "equals": operator.eq,
@@ -30,6 +32,13 @@ register_type(
         lambda text: text.strip(),
     ),
 )
+
+UNSUPPORTED_OPERANDS: dict[str, object] = {
+    "an integer": 1_000_000,
+    "a float": 1.5,
+    "a string": "1,000,000",
+    "another time span": timerun.TimeSpan(start=0, end=2_000_000),
+}
 
 
 # --- Given ---
@@ -113,6 +122,19 @@ def step_when_modify_start_value(context: Context) -> None:
         context.exception = exc
 
 
+@when("I compare whether the time span is less than {operand}")
+def step_compare_time_span_less_than(
+    context: Context,
+    operand: str,
+) -> None:
+    """Attempt ordering comparison between TimeSpan and specified operand."""
+    target = UNSUPPORTED_OPERANDS[operand]
+    try:
+        _ = context.time_span < target
+    except TypeError as e:
+        context.exception = e
+
+
 # --- Then ---
 
 
@@ -168,24 +190,3 @@ def step_spans_in_set_produces(context: Context, count: int = 2) -> None:
     assert len(span_set) == count, (
         f"Expected {count} elements in set, got {len(span_set)}"
     )
-
-
-UNSUPPORTED_OPERANDS: dict[str, object] = {
-    "an integer": 1_000_000,
-    "a float": 1.5,
-    "a string": "1,000,000",
-    "another time span": timerun.TimeSpan(start=0, end=2_000_000),
-}
-
-
-@when("I compare whether the time span is less than {operand}")
-def step_compare_time_span_less_than(
-    context: Context,
-    operand: str,
-) -> None:
-    """Attempt ordering comparison between TimeSpan and specified operand."""
-    target = UNSUPPORTED_OPERANDS[operand]
-    try:
-        _ = context.time_span < target
-    except TypeError as e:
-        context.exception = e
