@@ -148,7 +148,9 @@ class Measurement:
 
     wall_time: TimeSpan | None = None
     cpu_time: TimeSpan | None = None
-    metadata: dict[str, object] = field(default_factory=dict)
+    metadata: dict[str, object] = field(
+        default_factory=cast("Callable[[], dict[str, object]]", dict),
+    )
 
 
 # --- Internal Types & Protocols ---
@@ -251,6 +253,8 @@ class Timer:
         maxlen: int | None = None,
     ) -> None:
         """Init with optional metadata, callbacks, and maxlen (decorator)."""
+        super().__init__()
+
         # Base metadata copied to each new measurement.
         self._metadata: dict[str, object] = (
             dict(metadata) if isinstance(metadata, Mapping) else {}
@@ -329,7 +333,7 @@ class Timer:
         owner_id, stack = self._get_context_stack(is_async=is_async)
         wall_start = perf_counter_ns()
         cpu_start = thread_time_ns()
-        self._stack_var.set(
+        _ = self._stack_var.set(
             (owner_id, (*stack, (measurement, wall_start, cpu_start))),
         )
         return measurement
@@ -358,7 +362,7 @@ class Timer:
             msg = "__exit__ called without a matching __enter__"
             raise RuntimeError(msg)
         measurement, wall_start, cpu_start = stack[-1]
-        self._stack_var.set((owner_id, stack[:-1]))
+        _ = self._stack_var.set((owner_id, stack[:-1]))
 
         # Set spans on measurement and run on_end callback if set.
         measurement.wall_time = TimeSpan(start=wall_start, end=wall_end)

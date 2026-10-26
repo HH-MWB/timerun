@@ -43,6 +43,12 @@ repos:
         files: ^timerun\.py$
         additional_dependencies: [behave]
 
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.414
+    hooks:
+      - id: pyright
+        files: ^timerun\.py$
+
   - repo: https://github.com/pylint-dev/pylint
     rev: v4.1.3
     hooks:

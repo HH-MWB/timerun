@@ -83,6 +83,30 @@ enable_error_code = [
     "unused-awaitable",
 ]
 
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.10"
+pythonPlatform = "All"
+venvPath = "."
+venv = ".venv"
+include = ["timerun.py"]
+deprecateTypingAliases = true
+reportCallInDefaultInitializer = "error"
+reportImplicitOverride = "error"
+reportImplicitStringConcatenation = "error"
+reportImportCycles = "error"
+reportMissingSuperCall = "error"
+reportMissingTypeStubs = "error"
+reportPropertyTypeMismatch = "error"
+reportUninitializedInstanceVariable = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportUnusedCallResult = "error"
+reportUnusedImport = "error"
+reportUnusedClass = "error"
+reportUnusedFunction = "error"
+reportUnusedVariable = "error"
+reportDeprecated = "error"
+
 [tool.pylint.format]
 max-line-length = 79
 
