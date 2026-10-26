@@ -41,10 +41,21 @@ Issues = "https://github.com/HH-MWB/timerun/issues"
 Changelog = "https://github.com/HH-MWB/timerun/releases"
 PyPI = "https://pypi.org/project/timerun"
 
+[dependency-groups]
+dev = [
+    "behave",
+    "coverage",
+    "pip-audit",
+    "pre-commit",
+    "zensical; python_version >= '3.11'",
+]
+build = [
+    "build",
+    "twine",
+]
+
 [tool.setuptools]
 py-modules = ["timerun"]
-zip-safe = true
-include-package-data = false
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
@@ -131,6 +142,9 @@ max-complexity = 5
 
 [tool.ruff.lint.per-file-ignores]
 "features/steps/*.py" = ["S101"]
+
+[tool.coverage.run]
+source = ["timerun"]
 
 [tool.coverage.report]
 fail_under = 100

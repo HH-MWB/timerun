@@ -16,7 +16,6 @@ PYTHON ?=
 VENV_DIR := .venv
 
 # ---- Do Not Edit ----
-COVERAGE_SOURCE := timerun
 VENV_BIN := $(VENV_DIR)/bin
 GITIGNORE_PATHS := \
 	.gitignore \
@@ -74,8 +73,7 @@ init: ## Set up dev env. Prompts for Python, or: make init PYTHON=python3.10
 	fi; \
 	if [ ! -d "$(VENV_DIR)" ]; then $$py -m venv "$(VENV_DIR)" >/dev/null; fi
 	@$(VENV_BIN)/pip install --upgrade pip >/dev/null
-	@$(VENV_BIN)/pip install -e . -r requirements-dev.txt zensical >/dev/null
-	@$(VENV_BIN)/pip install pre-commit >/dev/null
+	@$(VENV_BIN)/pip install -e . --group dev >/dev/null
 	@$(VENV_BIN)/pre-commit install >/dev/null
 
 .PHONY: clean
@@ -114,7 +112,7 @@ test: test-verbose  ## Run BDD tests (summary + coverage; failures show which sc
 
 .PHONY: test-verbose
 test-verbose: check-venv ## Run BDD tests with full scenario/step output (for debugging failures)
-	@$(VENV_BIN)/coverage run --source=$(COVERAGE_SOURCE) -m behave $(BEHAVE_ARGS)
+	@$(VENV_BIN)/coverage run -m behave $(BEHAVE_ARGS)
 	@$(VENV_BIN)/coverage report --show-missing
 
 # ============================================================================
