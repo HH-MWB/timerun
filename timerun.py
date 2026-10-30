@@ -55,7 +55,7 @@ from inspect import (
     iscoroutinefunction,
     isgeneratorfunction,
 )
-from threading import Lock, current_thread
+from threading import current_thread
 from time import perf_counter_ns, thread_time_ns
 from types import TracebackType
 from typing import (
@@ -403,7 +403,7 @@ class Timer:
     def _wrap_async_gen(
         self,
         f: Callable[_P, AsyncGenerator[_R, None]],
-        append_measurement: Callable[[Measurement], None],
+        measurements: deque[Measurement],
     ) -> Callable[_P, AsyncGenerator[_R, None]]:
         """Wrap an async generator function with timing."""
 
@@ -418,15 +418,15 @@ class Timer:
                     async for x in f(*args, **kwargs):
                         yield x
             finally:
-                if isinstance(m, Measurement):
-                    append_measurement(m)
+                if m is not None:
+                    measurements.append(m)
 
         return wrapper
 
     def _wrap_coroutine(
         self,
         f: Callable[_P, Awaitable[_R]],
-        append_measurement: Callable[[Measurement], None],
+        measurements: deque[Measurement],
     ) -> Callable[_P, Coroutine[None, None, _R]]:
         """Wrap a coroutine function with timing."""
 
@@ -440,15 +440,15 @@ class Timer:
                 async with self as m:
                     return await f(*args, **kwargs)
             finally:
-                if isinstance(m, Measurement):
-                    append_measurement(m)
+                if m is not None:
+                    measurements.append(m)
 
         return wrapper
 
     def _wrap_generator(
         self,
         f: Callable[_P, Generator[_R, None, None]],
-        append_measurement: Callable[[Measurement], None],
+        measurements: deque[Measurement],
     ) -> Callable[_P, Generator[_R, None, None]]:
         """Wrap a generator function with timing."""
 
@@ -462,15 +462,15 @@ class Timer:
                 with self as m:
                     yield from f(*args, **kwargs)
             finally:
-                if isinstance(m, Measurement):
-                    append_measurement(m)
+                if m is not None:
+                    measurements.append(m)
 
         return wrapper
 
     def _wrap_sync(
         self,
         f: Callable[_P, _R],
-        append_measurement: Callable[[Measurement], None],
+        measurements: deque[Measurement],
     ) -> Callable[_P, _R]:
         """Wrap a synchronous function with timing."""
 
@@ -481,43 +481,35 @@ class Timer:
                 with self as m:
                     return f(*args, **kwargs)
             finally:
-                if isinstance(m, Measurement):
-                    append_measurement(m)
+                if m is not None:
+                    measurements.append(m)
 
         return wrapper
 
-    def __call__(
-        self,
-        f: Callable[_P, _R],
-    ) -> _TimedCallable[_P, _R]:
+    def __call__(self, f: Callable[_P, _R]) -> _TimedCallable[_P, _R]:
         """Wrap a callable with timing (decorator usage)."""
-        # Shared state and helper for all wrapper branches.
+        # Shared state for all wrapper branches.
         measurements: deque[Measurement] = deque(maxlen=self._maxlen)
-        lock = Lock()
-
-        def append_measurement(m: Measurement) -> None:
-            with lock:
-                measurements.append(m)
 
         # Build wrapper by callable type: async gen, coroutine, sync gen, sync.
         wrapper: Callable[_P, object]
         if isasyncgenfunction(f):
             wrapper = self._wrap_async_gen(
                 cast("Callable[_P, AsyncGenerator[_R, None]]", f),
-                append_measurement,
+                measurements,
             )
         elif iscoroutinefunction(f):
             wrapper = self._wrap_coroutine(
                 cast("Callable[_P, Awaitable[_R]]", f),
-                append_measurement,
+                measurements,
             )
         elif isgeneratorfunction(f):
             wrapper = self._wrap_generator(
                 cast("Callable[_P, Generator[_R, None, None]]", f),
-                append_measurement,
+                measurements,
             )
         else:
-            wrapper = self._wrap_sync(f, append_measurement)
+            wrapper = self._wrap_sync(f, measurements)
 
         # Attach measurements to wrapper and return.
         wrapped = cast(
