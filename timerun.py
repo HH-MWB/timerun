@@ -275,15 +275,15 @@ class Timer:
     ) -> tuple[int, _StackTuple]:
         """Return the owner id and stack for the current execution context.
 
-        "Owner" is the execution identity that owns the stack: thread id in
-        sync mode, task id in async mode. Returns (owner_id, stack) if
-        already bound to this owner, or (owner_id, ()) if uninitialized
-        or inherited from another task/thread.
+        "Owner" is the execution identity that owns the stack: task id if
+        running in an asyncio task, or thread id if running outside any task.
+        Returns (owner_id, stack) if already bound to this owner, or
+        (owner_id, ()) if uninitialized or inherited from another task/thread.
 
         Parameters
         ----------
         is_async : bool
-            True for task-local async stack, False for thread-local sync stack.
+            True for task-local async stack, False for sync stack.
 
         Returns
         -------
@@ -296,15 +296,17 @@ class Timer:
             If is_async is True and there is no current asyncio task.
 
         """
-        # Resolve owner id for this context (thread or task).
-        if is_async:
+        # Resolve owner id for this context (task if in a task, else thread).
+        try:
             task = current_task()
-            if task is None:
-                msg = "no current asyncio task"
-                raise RuntimeError(msg)
-            owner_id = id(task)
-        else:
-            owner_id = id(current_thread())
+        except RuntimeError:
+            task = None
+
+        if is_async and task is None:
+            msg = "no current asyncio task"
+            raise RuntimeError(msg)
+
+        owner_id = id(task) if task is not None else id(current_thread())
 
         # Get stack for this context if owned by this caller, else empty.
         owner, stack = self._stack_var.get()
