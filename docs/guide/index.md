@@ -4,7 +4,7 @@ title: Guide
 
 # Guide
 
-This section describes the TimeRun API: its concepts, parameters, and behavior. Use it after the [Quickstart](../quickstart/index.md#quick-start) for a complete picture of blocks, functions, metadata, callbacks, and sync/async and generator support.
+This section describes the TimeRun API: its concepts, parameters, and behavior. Use it after the [Home](../index.md#quickstart) quickstart for a complete picture of blocks, functions, metadata, callbacks, and sync/async and generator support.
 
 You can also use it as a lookup while working with the library.
 

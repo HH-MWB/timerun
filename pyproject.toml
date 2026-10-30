@@ -8,19 +8,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "timerun"
-description = "Single-file Python timing library (stdlib only). Measures wall-clock and CPU time for blocks/calls with optional metadata."
+description = "Structured wall-clock & CPU timing for Python (stdlib only). Zero dependencies, nanosecond precision, and ready for your logs, metrics, and OpenTelemetry."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "HH-MWB", email = "h.hong@mail.com" }]
 keywords = [
     "time",
+    "timing",
     "measurement",
     "measurements",
     "elapsed",
     "stopwatch",
     "timer",
     "performance",
+    "latency",
+    "profiler",
+    "benchmarking",
+    "telemetry",
+    "opentelemetry",
+    "wall-clock",
+    "cpu-time",
+    "asyncio",
+    "fastapi",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
