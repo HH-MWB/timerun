@@ -4,11 +4,22 @@ title: Cookbook
 
 # Cookbook
 
-Real-world patterns for using TimeRun: use metadata effectively, share results with your stack, time web traffic, and analyze timing data.
+Real-world recipes and production patterns for TimeRun: web frameworks, telemetry pipelines, AI/LLM token streaming, structured logging, and latency analysis.
 
-You already know the API from the [Guide](../guide/index.md): timer overview, measure a block, measure function calls, metadata, and callbacks. Here we show how to apply it to concrete problems.
+---
 
-1. **[Use metadata effectively](metadata.md)** — Add context (e.g. request id, stage) to every measurement by mutating metadata in `on_start`.
-2. **[Share results](share-results.md)** — Send measurements to logs, files, OpenTelemetry, or Prometheus using `on_end`.
-3. **[Time web requests](web-framework.md)** — Wrap HTTP requests with `Timer` in FastAPI, Flask, or Django.
-4. **[Analyze results](analyze-results.md)** — Collect measurements and compute summaries or confidence intervals with standard tools.
+## Observability & Telemetry
+
+- **[Share results](share-results.md)** — Push measurements to standard logging, JSONL files, OpenTelemetry traces, or Prometheus histograms in `on_end`.
+- **[Structured logging with Structlog & Loguru](structured-logging.md)** — Emit structured JSON execution events with wall time, CPU time, and metadata.
+- **[Use metadata effectively](metadata.md)** — Add contextual tags (e.g., request id, user id, experiment stage) to every measurement in `on_start`.
+
+## Web & AI Applications
+
+- **[Time web requests](web-framework.md)** — Middleware patterns for FastAPI (Starlette), Flask, and Django to capture wall and CPU latency per HTTP request.
+- **[Time LLM token streaming](llm-streaming.md)** — Measure Time to First Token (TTFT) and total generation time across streaming AI/LLM responses.
+
+## Analysis & Performance
+
+- **[Analyze results](analyze-results.md)** — Collect measurements to compute statistical summaries, confidence intervals, and percentiles (p50, p99) using NumPy and SciPy.
+- **[Overhead & benchmarks](benchmarks-overhead.md)** — Verification of TimeRun's sub-microsecond overhead and patterns for micro-benchmarking algorithms.

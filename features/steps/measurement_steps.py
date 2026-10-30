@@ -14,6 +14,12 @@ if TYPE_CHECKING:
 # --- Given ---
 
 
+@given("a default measurement")
+def step_create_default_measurement(context: Context) -> None:
+    """Create a default Measurement instance."""
+    context.measurement = timerun.Measurement()
+
+
 @given("a {kind} time span from {start:n} to {end:n}")
 def step_given_typed_time_span(
     context: Context,
@@ -41,33 +47,17 @@ def step_create_measurement_from_spans(context: Context) -> None:
     )
 
 
-@when('the metadata key "{key}" is set to "{value}"')
-def step_measurement_metadata_key_set(
-    context: Context,
-    key: str,
-    value: str,
-) -> None:
-    """Set measurement metadata[key]."""
-    context.measurement.metadata[key] = value
+@when("I set the measurement metadata:")
+def step_set_measurement_metadata_table(context: Context) -> None:
+    """Set measurement metadata from table."""
+    for row in context.table:
+        context.measurement.metadata[row["key"]] = row["value"]
 
 
 # --- Then ---
 
 
-@then("the measurement's {kind} time duration is {expected:n} nanoseconds")
-def step_measurement_time_duration(
-    context: Context,
-    kind: str,
-    expected: int,
-) -> None:
-    """Assert measurement duration equals expected."""
-    assert (
-        getattr(context.measurement, f"{kind.lower()}_time").duration
-        == expected
-    )
-
-
-@then("the measurement's metadata is an empty dict")
-def step_measurement_metadata_empty_dict(context: Context) -> None:
-    """Assert metadata is empty dict."""
+@then("the measurement's metadata is empty")
+def step_measurement_metadata_empty(context: Context) -> None:
+    """Assert metadata is empty."""
     assert context.measurement.metadata == {}

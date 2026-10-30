@@ -1,19 +1,18 @@
 # Contributing to TimeRun
 
-Thank you for considering contributing to TimeRun. This guide explains how to set up your environment, run tests, and submit changes.
+Thank you for considering contributing to TimeRun. This guide explains how to set up your environment, understand the project layout, run tests, and submit changes.
 
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
 - [How You Can Help](#how-you-can-help)
 - [Setup](#setup)
-- [Development Commands](#development-commands)
-- [Testing](#testing)
-- [Code Style and Quality](#code-style-and-quality)
 - [Project Structure](#project-structure)
+- [Development Commands](#development-commands)
+- [Code Style and Quality](#code-style-and-quality)
+- [Testing](#testing)
 - [Pull Request Process](#pull-request-process)
 - [Releasing](#releasing)
-- [Reporting Bugs](#reporting-bugs)
 - [License](#license)
 
 ## Code of Conduct
@@ -22,7 +21,7 @@ This project adheres to the [Contributor Covenant Code of Conduct](https://www.c
 
 ## How You Can Help
 
-- **Report bugs** — Open an issue with clear steps to reproduce.
+- **Report bugs** — Search [existing issues](https://github.com/HH-MWB/timerun/issues) to avoid duplicates, then open an issue using the bug report template with clear steps to reproduce and environment details.
 - **Suggest features** — Open an issue describing the use case and desired behavior.
 - **Submit code** — Fix bugs or add features via pull requests (see [Pull Request Process](#pull-request-process)).
 - **Improve docs** — Fix typos, clarify README or docstrings, or add examples.
@@ -47,56 +46,15 @@ This project adheres to the [Contributor Covenant Code of Conduct](https://www.c
 
 2. Run `make init`. You will be prompted to choose a Python interpreter (press Enter for `python3`, or type e.g. `python3.10`). To skip the prompt, run `make init PYTHON=python3.10` (or another 3.10+ interpreter). This creates a `.venv`, installs the package in editable mode with dev and docs dependencies (Zensical), and installs pre-commit hooks.
 
-3. Optionally activate the venv for interactive use: `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`). You can run `make test` and `make lint` without activating.
+3. Optionally activate the venv for interactive use: `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`). You can run `make lint`, `make audit`, and `make test` without activating.
 
 ### Verify setup
 
-1. Run `make test`. You should see the BDD scenarios run and a coverage report.
-2. Run `make lint`. Lint should pass.
+Run the full verification suite (lint, audit, and tests):
 
-## Development Commands
-
-Use the Makefile for common tasks. Run `make help` for the full list.
-
-- **`make help`** — Show all targets and descriptions
-- **`make init`** — Prompts for Python interpreter (default: `python3`); set `PYTHON` to skip (e.g. `make init PYTHON=python3.10`). Sets up venv, installs package and dev + docs deps (Zensical), installs pre-commit hooks.
-- **`make clean`** — Remove all files and directories listed in `.gitignore` (inverse of init)
-- **`make test`** — Run BDD tests with coverage (summary output)
-- **`make test-verbose`** — Run BDD tests with full scenario/step output (for debugging)
-- **`make docs`** — Serve the docs locally (http://127.0.0.1:8000)
-- **`make docs-build`** — Build the docs site (output in `site/`; config: `zensical.toml`)
-- **`make lint`** — Run pre-commit (format and lint) on all files
-
-## Testing
-
-TimeRun uses **behavior-driven development (BDD)** with [behave](https://behave.readthedocs.io/). All tests are written in Gherkin and live under `features/`.
-
-### Run tests
-
-- Use **`make test`** for normal runs (summary and coverage; failures show which scenario failed).
-- Use **`make test-verbose`** when debugging failures (full scenario/step output).
-
-### Adding or changing tests
-
-- **Feature files** — Add or edit `.feature` files in `features/` (e.g. `features/version.feature`). Use standard Gherkin: `Feature`, `Scenario`, `Given`, `When`, `Then`.
-- **Step definitions** — Implement steps in Python under `features/steps/`, typically in a `*_steps.py` file. Use `@given`, `@when`, `@then` from `behave`; step functions receive a `context` argument.
-- Keep scenarios focused and steps reusable. Add or extend scenarios for new behavior rather than skipping BDD.
-
-## Code Style and Quality
-
-Pre-commit hooks (installed by `make init`) run on each commit. Before pushing, run `make lint` and fix any failures so CI stays green.
-
-CI (on pull requests and pushes to `main`) runs: **lint** (pre-commit) → **test** (Python 3.10–3.14 matrix, with coverage) → **build** (package build and `twine check`). Outdated runs for the same branch are cancelled automatically.
-
-We expect (all run via `make lint`):
-
-- **pre-commit-hooks** — Trailing whitespace removed, end-of-file newline, no BOM, LF line endings; YAML and TOML syntax checked
-- **Ruff** — Code formatting (`ruff-format`) and linting (`ruff-check`)
-- **mypy** — Static type checking on `timerun.py`; use type hints on public APIs
-- **Pylint** — Lint and style on `timerun.py`; docstrings expected on public functions, classes, and modules
-- **Bandit** — Security issue detection (config in `pyproject.toml`)
-- **Semgrep** — Security and bug patterns (Python ruleset)
-- **yamllint** — YAML style and syntax (e.g. workflow and config files)
+```bash
+make check
+```
 
 ## Project Structure
 
@@ -120,7 +78,7 @@ timerun/
 ├── zensical.toml             # Docs site config (Zensical)
 ├── docs/                     # Docs source (Markdown)
 ├── timerun.py                # Library (single-file by design)
-├── Makefile                  # Commands: init, test, test-verbose, lint, docs, docs-build, clean, help
+├── Makefile                  # Development task automation (run 'make help')
 ├── README.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
@@ -130,6 +88,55 @@ timerun/
 
 - **`timerun.py`** — The only library module; keep it a single file by design.
 - **`features/`** — All executable specs; no separate unit test directory. Layout follows [behave](https://behave.readthedocs.io/) convention: step definitions live under `features/steps/` (flat; subdirectories are not searched). Shared steps (e.g. metadata, wall-time buffer, exception propagation) live in `common_steps.py`. Run behave from the project root.
+
+## Development Commands
+
+Use the Makefile for common tasks. Run `make help` for the full list.
+
+- **`make help`** — Show all targets and descriptions
+- **`make init`** — Create virtualenv and install all dependencies (dev + docs) and pre-commit hooks
+- **`make clean`** — Remove all files and directories listed in `.gitignore` (inverse of init)
+- **`make check`** — Run all verification checks (lint, audit, test)
+- **`make lint`** — Run pre-commit (format and lint) on all files
+- **`make audit`** — Run pip-audit for dependency security vulnerabilities
+- **`make test`** — Run BDD tests with coverage (summary output)
+- **`make test-verbose`** — Run BDD tests with full scenario/step output (for debugging)
+- **`make docs`** — Serve the docs locally (http://127.0.0.1:8000)
+- **`make docs-build`** — Build the docs site (output in `site/`; config: `zensical.toml`)
+
+## Code Style and Quality
+
+Pre-commit hooks (installed by `make init`) run on each commit. Before pushing, run `make lint` and fix any failures so CI stays green.
+
+CI (on pull requests and pushes to `main`) runs: **lint** (pre-commit), **audit** (`pip-audit`), and **test** (Python 3.10–3.15 matrix, with coverage) → **build** (package build and `twine check`). Outdated runs for pull requests are cancelled automatically.
+
+We expect (all run via `make lint`):
+
+- **pre-commit-hooks** — Trailing whitespace, line endings, BOM, and TOML syntax checks
+- **yamllint** — YAML style and syntax checking for workflow and configuration files
+- **actionlint** — Static checking of GitHub Actions workflow files (.github/workflows/)
+- **codespell** — Spell checking across documentation, comments, and source files
+- **Ruff** — Code formatting (`ruff-format`) and linting (`ruff-check`)
+- **Pyright** — Static type checking on `timerun.py`; strict type verification
+- **mypy** — Static type checking on `timerun.py`; use type hints on public APIs
+- **Bandit** — Security issue detection on Python source code
+- **Pylint** — Lint and style on `timerun.py`; docstrings expected on public functions, classes, and modules
+- **Semgrep** — Security and bug pattern detection (Python ruleset)
+
+## Testing
+
+TimeRun uses **behavior-driven development (BDD)** with [behave](https://behave.readthedocs.io/). All tests are written in Gherkin and live under `features/`.
+
+### Run tests
+
+- Use **`make test`** for normal runs (summary and coverage; failures show which scenario failed).
+- Use **`make test-verbose`** when debugging failures (full scenario/step output).
+
+### Adding or changing tests
+
+- **Feature files** — Add or edit `.feature` files in `features/` (e.g. `features/version.feature`). Use standard Gherkin: `Feature`, `Scenario`, `Given`, `When`, `Then`.
+- **Step definitions** — Implement steps in Python under `features/steps/`, typically in a `*_steps.py` file. Use `@given`, `@when`, `@then` from `behave`; step functions receive a `context` argument.
+- Keep scenarios focused and steps reusable. Add or extend scenarios for new behavior rather than skipping BDD.
 
 ## Pull Request Process
 
@@ -143,10 +150,10 @@ timerun/
 
 2. **Make your changes** — Follow [Code Style and Quality](#code-style-and-quality) and add or update BDD scenarios in `features/` for new or changed behavior.
 
-3. **Verify lint and tests pass** (run lint, then tests):
+3. **Verify lint, audit, and tests pass**:
 
    ```bash
-   make lint test
+   make check
    ```
 
 4. **Commit** with clear, concise messages. Optionally use conventional style (e.g. `feat: add X`, `fix: correct Y`).
@@ -186,17 +193,6 @@ Releases are driven by **GitHub Releases** and publish to **TestPyPI** first, th
 6. The workflow runs again and publishes to **PyPI**.
 
 The same workflow handles both events: `release: types: [published, edited]`. Pre-release → TestPyPI; full release → PyPI.
-
-## Reporting Bugs
-
-- **Search** existing issues to avoid duplicates.
-- **Open an issue** with:
-  - A short, clear title.
-  - Steps to reproduce (code or commands).
-  - Expected vs actual behavior.
-  - Your environment: OS, Python version (`python --version`), and how you installed TimeRun (pip, editable, etc.).
-
-For small, obvious fixes you may open a PR directly with a short explanation.
 
 ## License
 

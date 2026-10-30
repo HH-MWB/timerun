@@ -1,6 +1,6 @@
 # TimeRun - Makefile
 #
-# Commands for development setup, testing, linting, and docs.
+# Commands for development setup, linting, security auditing, testing, and docs.
 # Requires Python 3.10+ and pip.
 #
 # Usage: make [target] (run "make help" for all targets)
@@ -16,7 +16,6 @@ PYTHON ?=
 VENV_DIR := .venv
 
 # ---- Do Not Edit ----
-COVERAGE_SOURCE := timerun
 VENV_BIN := $(VENV_DIR)/bin
 GITIGNORE_PATHS := \
 	.gitignore \
@@ -73,9 +72,8 @@ init: ## Set up dev env. Prompts for Python, or: make init PYTHON=python3.10
 		py=python3; \
 	fi; \
 	if [ ! -d "$(VENV_DIR)" ]; then $$py -m venv "$(VENV_DIR)" >/dev/null; fi
-	@$(VENV_BIN)/pip install --upgrade pip >/dev/null
-	@$(VENV_BIN)/pip install -e . -r requirements-dev.txt zensical >/dev/null
-	@$(VENV_BIN)/pip install pre-commit >/dev/null
+	@$(VENV_BIN)/pip install --upgrade pip setuptools >/dev/null
+	@$(VENV_BIN)/pip install -e . --group dev --group docs >/dev/null
 	@$(VENV_BIN)/pre-commit install >/dev/null
 
 .PHONY: clean
@@ -88,7 +86,51 @@ clean: ## Remove all files/dirs listed in .gitignore (inverse of init)
 	done; \
 	set +f
 
-# Internal: used by test, docs, lint; not shown in help
+# ============================================================================
+# Verification Targets
+# ============================================================================
+
+##@ Verification
+
+.PHONY: check
+check: lint audit test ## Run all verification checks (lint, audit, test)
+
+.PHONY: lint
+lint: check-venv ## Run pre-commit (lint and format checks) on all files
+	@$(VENV_BIN)/pre-commit run --all-files
+
+.PHONY: audit
+audit: check-venv ## Run pip-audit for dependency security vulnerabilities
+	@$(VENV_BIN)/pip-audit --skip-editable
+
+.PHONY: test
+test: BEHAVE_ARGS := -f null
+test: test-verbose  ## Run BDD tests (summary + coverage; failures show which scenario failed)
+
+.PHONY: test-verbose
+test-verbose: check-venv ## Run BDD tests with full scenario/step output (for debugging failures)
+	@$(VENV_BIN)/coverage run -m behave $(BEHAVE_ARGS)
+	@$(VENV_BIN)/coverage report --show-missing
+
+# ============================================================================
+# Documentation Targets
+# ============================================================================
+
+##@ Documentation
+
+.PHONY: docs
+docs: check-venv ## Serve the docs locally (http://127.0.0.1:8000); Ctrl+C removes site/
+	@trap 'rm -rf site' INT; $(VENV_BIN)/zensical serve
+
+.PHONY: docs-build
+docs-build: check-venv ## Build the docs site (output in site/); ensures site/.gitignore
+	@$(VENV_BIN)/zensical build
+
+# ============================================================================
+# Internal Helpers
+# ============================================================================
+
+# Internal: used by lint, audit, test, docs; not shown in help
 .PHONY: check-venv
 check-venv:
 	@if [ ! -d "$(VENV_DIR)" ]; then \
@@ -101,42 +143,3 @@ check-venv:
 		echo "Please run 'make init' to install the package and dependencies."; \
 		exit 1; \
 	fi
-
-# ============================================================================
-# Testing Targets
-# ============================================================================
-
-##@ Testing
-
-.PHONY: test
-test: BEHAVE_ARGS := -f null
-test: test-verbose  ## Run BDD tests (summary + coverage; failures show which scenario failed)
-
-.PHONY: test-verbose
-test-verbose: check-venv ## Run BDD tests with full scenario/step output (for debugging failures)
-	@$(VENV_BIN)/coverage run --source=$(COVERAGE_SOURCE) -m behave $(BEHAVE_ARGS)
-	@$(VENV_BIN)/coverage report --show-missing
-
-# ============================================================================
-# Docs Targets
-# ============================================================================
-
-##@ Docs
-
-.PHONY: docs
-docs: check-venv ## Serve the docs locally (http://127.0.0.1:8000); Ctrl+C removes site/
-	@trap 'rm -rf site' INT; $(VENV_BIN)/zensical serve
-
-.PHONY: docs-build
-docs-build: check-venv ## Build the docs site (output in site/); ensures site/.gitignore
-	@$(VENV_BIN)/zensical build
-
-# ============================================================================
-# Lint Targets
-# ============================================================================
-
-##@ Lint
-
-.PHONY: lint
-lint: check-venv ## Run pre-commit (lint and format checks) on all files
-	@$(VENV_BIN)/pre-commit run --all-files

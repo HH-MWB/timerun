@@ -2,12 +2,11 @@
 
 [project]
 site_name = "TimeRun"
-site_description = "Python package for time measurement — wall-clock and CPU time, zero dependencies."
+site_description = "Structured wall-clock & CPU timing for Python. Zero dependencies, nanosecond precision, and ready for your observability stack."
 site_url = "https://hh-mwb.github.io/timerun/"
 repo_url = "https://github.com/HH-MWB/timerun"
 nav = [
-  { "Quickstart" = "quickstart/index.md" },
-  { "Overview" = "overview/index.md" },
+  { "Home" = "index.md" },
   { "Guide" = [
     "guide/index.md",
     { "Timer overview" = "guide/timer.md" },
@@ -22,14 +21,19 @@ nav = [
     "cookbook/index.md",
     { "Use metadata effectively" = "cookbook/metadata.md" },
     { "Share results" = "cookbook/share-results.md" },
+    { "Structured logging" = "cookbook/structured-logging.md" },
     { "Time web requests" = "cookbook/web-framework.md" },
+    { "Time LLM streaming" = "cookbook/llm-streaming.md" },
     { "Analyze results" = "cookbook/analyze-results.md" },
+    { "Overhead & benchmarks" = "cookbook/benchmarks-overhead.md" },
   ]},
 ]
 
 # -- Theme -------------------------------------------------------------------
 
 [project.theme]
+logo = "https://github.com/user-attachments/assets/e438ee66-bf13-465c-a28a-8474f226a7e9"
+favicon = "https://github.com/user-attachments/assets/e438ee66-bf13-465c-a28a-8474f226a7e9"
 features = [
   "content.code.annotate",
   "content.code.copy",
@@ -64,6 +68,7 @@ toggle   = { icon = "lucide/moon", name = "Dark mode" }
 
 [project.markdown_extensions]
 admonition = {}
+md_in_html = {}
 
 [project.markdown_extensions.pymdownx]
 details      = {}

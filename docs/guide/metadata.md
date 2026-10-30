@@ -8,7 +8,7 @@ Key-value **metadata** can be attached to each measurement (e.g. run id, tags). 
 
 ## Supplying metadata
 
-Provide a dictionary when instantiating the Timer:
+Provide a mapping (such as a dictionary) when instantiating the Timer:
 
 ```python
 with Timer(metadata={"run_id": "abc", "tag": "ingest"}) as m:
@@ -17,12 +17,12 @@ with Timer(metadata={"run_id": "abc", "tag": "ingest"}) as m:
 # m.metadata is {"run_id": "abc", "tag": "ingest"}
 ```
 
-Each measurement receives a **deep copy** of this dictionary at enter time. The Timer retains the original by reference but does not reuse the same dict for multiple measurements.
+Timer converts the mapping into an internal dictionary; each measurement receives a **shallow copy** at enter time (`self._metadata.copy()`). Non-pickleable objects (such as locks, file handles, or network connections) can be safely included in metadata without crashing.
 
 ## Per-measurement copy; isolation between runs
 
-- Each block or call receives its **own** copy of the initial metadata. Mutating `measurement.metadata` inside that block (or in `on_start` for that measurement) affects only that measurement.
-- If you reuse the same Timer for a second block, the second block’s measurement starts from a fresh deep copy of the Timer’s initial metadata. It does **not** inherit any keys or changes from the first block.
+- Each block or call receives its **own** dictionary copy of the initial metadata. Mutating `measurement.metadata` (e.g. adding or modifying keys) inside that block or in `on_start` affects only that measurement.
+- If you reuse the same Timer for a second block, the second block’s measurement starts from a fresh copy of the Timer’s initial metadata. It does **not** inherit any keys or changes from the first block.
 
 !!! tip "Metadata is per run"
 

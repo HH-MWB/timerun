@@ -16,15 +16,17 @@ from timerun import Timer
 
 logger = logging.getLogger(__name__)
 
+
 def log_measurement(m):
     logger.info(
         "timing",
         extra={
-            "wall_s": m.wall_time.timedelta.total_seconds(),
-            "cpu_s": m.cpu_time.timedelta.total_seconds(),
+            "wall_s": m.wall_time.duration / 1e9,
+            "cpu_s": m.cpu_time.duration / 1e9,
             **m.metadata,
         },
     )
+
 
 with Timer(on_end=log_measurement):
     do_work()
@@ -41,6 +43,7 @@ from timerun import Timer
 
 path = Path("measurements.jsonl")
 
+
 def append_measurement(m):
     record = {
         "wall_ns": m.wall_time.duration,
@@ -49,6 +52,7 @@ def append_measurement(m):
     }
     with path.open("a") as f:
         f.write(json.dumps(record) + "\n")
+
 
 with Timer(metadata={"run": "1"}, on_end=append_measurement):
     do_work()
@@ -64,8 +68,10 @@ from timerun import Timer
 # Assume you have a Tracer (e.g. from opentelemetry.trace import get_tracer)
 # tracer = get_tracer(__name__)
 
+
 def on_start(m):
     m.metadata["span"] = tracer.start_span("timerun")  # (1)!
+
 
 def on_end(m):
     span = m.metadata.get("span")  # (2)!
@@ -77,6 +83,7 @@ def on_end(m):
         if k != "span" and v is not None:
             span.set_attribute(k, str(v))
     span.end()  # (3)!
+
 
 with Timer(on_start=on_start, on_end=on_end):
     do_work()
@@ -97,7 +104,20 @@ from timerun import Timer
 OPERATION_SECONDS = Histogram(
     "timerun_operation_seconds",
     "Wall time for timed operations (seconds)",
-    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, float("inf")),
+    buckets=(
+        0.001,
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1.0,
+        2.5,
+        5.0,
+        float("inf"),
+    ),
 )
 
 
