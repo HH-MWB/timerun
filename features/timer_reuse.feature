@@ -1,8 +1,8 @@
 Feature: Timer reuse
 
-  As someone measuring duration,
-  I want to reuse one Timer across multiple executions,
-  so that each execution is independently measured and storage stays bounded.
+  As a developer building concurrent applications,
+  I want to reuse a Timer across sequential, nested, and parallel runs,
+  so that measurements remain isolated without race conditions or leaks.
 
   Scenario: Two sequential blocks with one Timer yield correct durations
     Given the first block duration is 2,000,000 nanoseconds

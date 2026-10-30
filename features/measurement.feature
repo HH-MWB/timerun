@@ -1,8 +1,8 @@
 Feature: Measurement
 
-  As someone measuring duration,
-  I want a value with wall time, CPU time, and optional metadata,
-  so that I can store results and attach labels.
+  As a developer collecting performance telemetry,
+  I want a structured record combining wall time, CPU time, and metadata,
+  so that I can inspect timing metrics and attach diagnostic tags.
 
   Scenario: Measurement from wall and CPU spans has both durations
     Given a wall time span from 0 to 1,000,000

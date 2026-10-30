@@ -1,8 +1,8 @@
 Feature: Basic timing
 
-  As someone measuring duration,
-  I want to time code execution (blocks, functions, and generators),
-  so that I get accurate wall time and CPU time measurements.
+  As a developer profiling application code,
+  I want to time blocks, functions, and streaming generators,
+  so that I can isolate I/O latency from CPU computation.
 
   Scenario: Measuring synchronous blocking operation yields wall time and minimal CPU time
     Given a blocking operation that runs for 5,000,000 nanoseconds

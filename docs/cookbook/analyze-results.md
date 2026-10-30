@@ -43,9 +43,30 @@ durations_s = [m.wall_time.duration / 1e9 for m in measurements]
 
 ## Summarize
 
-TimeRun does not implement statistics — it only records timings. Use numpy, scipy, pandas, or your own code for aggregation and inference.
+TimeRun records timings without bundling heavy analysis tools. You can aggregate and analyze measurements using Python's standard library `statistics` module (zero external dependencies) or third-party packages (`numpy`, `scipy`, `pandas`).
 
-### Mean and a simple confidence interval
+### Standard library (`statistics`)
+
+For environments without third-party dependencies, Python's built-in `statistics` module provides convenient aggregations:
+
+```python
+import statistics
+
+durations_s = [m.wall_time.duration / 1e9 for m in measurements]
+
+mean_s = statistics.mean(durations_s)
+median_s = statistics.median(durations_s)
+stdev_s = statistics.stdev(durations_s)
+# 99th percentile using 100 quantiles
+p99_s = statistics.quantiles(durations_s, n=100)[98]
+
+print(f"mean:         {mean_s:.6f} s")
+print(f"p50 (median): {median_s:.6f} s")
+print(f"stdev:        {stdev_s:.6f} s")
+print(f"p99:          {p99_s:.6f} s")
+```
+
+### Mean and a simple confidence interval (SciPy)
 
 Example using `scipy.stats` for a t-based 95% confidence interval:
 

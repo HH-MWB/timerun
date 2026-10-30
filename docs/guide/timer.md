@@ -41,10 +41,10 @@ All parameters are optional and keyword-only (passed by name, e.g. `Timer(metada
 
 | Parameter   | Type | Description |
 |------------|------|-------------|
-| `metadata` | `Mapping \| None` | Key-value metadata for the measurement(s). Converted to an internal dictionary; each measurement gets a shallow copy (`self._metadata.copy()`) when the timed block or call begins. Defaults to `{}`. |
-| `on_start` | `callable \| None` | Called once per measurement when timing is about to start. Receives the `Measurement` (metadata set; `wall_time` and `cpu_time` are `None`). Defaults to `None`. |
-| `on_end`   | `callable \| None` | Called once per measurement when timing has just ended. Receives the `Measurement` with `wall_time` and `cpu_time` set. Defaults to `None`. |
-| `maxlen`   | `int \| None` | **Decorator only.** Maximum number of measurements to keep on the wrapped callable. Ignored when used as a context manager. Defaults to `None` (unbounded). |
+| `metadata` | `Mapping | None` | Key-value metadata for the measurement(s). Converted to an internal dictionary; each measurement gets a shallow copy (`self._metadata.copy()`) when the timed block or call begins. Defaults to `{}`. |
+| `on_start` | `callable | None` | Called once per measurement when timing is about to start. Receives the `Measurement` (metadata set; `wall_time` and `cpu_time` are `None`). Defaults to `None`. |
+| `on_end`   | `callable | None` | Called once per measurement when timing has just ended. Receives the `Measurement` with `wall_time` and `cpu_time` set. Defaults to `None`. |
+| `maxlen`   | `int | None` | **Decorator only.** Maximum number of measurements to keep on the wrapped callable. Ignored when used as a context manager. Defaults to `None` (unbounded). |
 
 ## Context manager mode
 

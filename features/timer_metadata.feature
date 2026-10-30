@@ -1,8 +1,8 @@
 Feature: Timer metadata
 
-  As someone measuring duration,
-  I want to attach metadata to measurements,
-  so that I can label and identify results.
+  As a developer analyzing benchmark runs,
+  I want to attach contextual metadata to timers and measurements,
+  so that I can correlate timings with request IDs and test parameters.
 
   Scenario: Initial metadata is carried on the yielded measurement
     Given initial metadata:
@@ -10,6 +10,17 @@ Feature: Timer metadata
       | run_id | exp-1    |
       | tag    | baseline |
     When I measure a code block
+    Then the measurement includes metadata:
+      | key    | value    |
+      | run_id | exp-1    |
+      | tag    | baseline |
+
+  Scenario: Metadata attached to the timer appears on each measurement
+    Given initial metadata:
+      | key    | value    |
+      | run_id | exp-1    |
+      | tag    | baseline |
+    When I call the decorated function
     Then the measurement includes metadata:
       | key    | value    |
       | run_id | exp-1    |
@@ -30,17 +41,6 @@ Feature: Timer metadata
       | run_id | same-run |
       | tag    | original |
     And the second measurement does not include metadata key "extra"
-
-  Scenario: Metadata attached to the timer appears on each measurement
-    Given initial metadata:
-      | key    | value    |
-      | run_id | exp-1    |
-      | tag    | baseline |
-    When I call the decorated function
-    Then the measurement includes metadata:
-      | key    | value    |
-      | run_id | exp-1    |
-      | tag    | baseline |
 
   Scenario: Metadata containing synchronization objects does not crash on enter
     Given metadata with an unpickleable lock object

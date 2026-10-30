@@ -42,38 +42,36 @@ print(f"Metadata: {m.metadata}")
 
 ## 2. Measuring Time to First Token (TTFT) and Total Time
 
-For interactive applications (chatbots, real-time agents), **Time to First Token (TTFT)** is critical for user experience. You can measure TTFT and total generation time within a single timed block using metadata:
+For interactive applications (chatbots, real-time agents), **Time to First Token (TTFT)** is critical for user experience. You can measure TTFT and total generation time by wrapping the token stream consumer in a `with Timer()` block and recording TTFT into `m.metadata`:
 
 ```python
 import time
 from timerun import Timer
 
 
-def generate_chat_response():
-    with Timer(metadata={"stage": "chat_completion"}) as m:
-        # Step 1: Request initiated
-        start_ns = time.perf_counter_ns()
-
-        # Step 2: Stream incoming tokens
-        tokens = ["Hello", " world", "!"]
-        for i, token in enumerate(tokens):
-            time.sleep(0.04)  # Simulate streaming delay
-
-            if i == 0:
-                # Capture Time to First Token (TTFT)
-                ttft_ms = (time.perf_counter_ns() - start_ns) / 1e6
-                m.metadata["ttft_ms"] = round(ttft_ms, 2)
-
-            yield token
-
-        m.metadata["token_count"] = len(tokens)
+def stream_llm_tokens():
+    """Simulate an upstream LLM client yielding token chunks."""
+    tokens = ["Hello", " world", "!"]
+    for token in tokens:
+        time.sleep(0.04)  # Simulate network arrival delay
+        yield token
 
 
-# Consume response and inspect metrics
-for token in generate_chat_response():
-    pass
+# Measure consumer iteration: capture TTFT and total duration
+with Timer(metadata={"stage": "chat_completion"}) as m:
+    start_ns = time.perf_counter_ns()
+    token_count = 0
 
-# On block exit, full wall & CPU times are available
+    for i, token in enumerate(stream_llm_tokens()):
+        if i == 0:
+            # Capture Time to First Token (TTFT) on the first yielded chunk
+            ttft_ms = (time.perf_counter_ns() - start_ns) / 1e6
+            m.metadata["ttft_ms"] = round(ttft_ms, 2)
+        token_count += 1
+
+    m.metadata["token_count"] = token_count
+
+# On block exit, full wall & CPU times and custom metadata are available
 print(f"Wall time: {m.wall_time.timedelta}")
 print(f"TTFT:      {m.metadata['ttft_ms']} ms")
 print(f"Tokens:    {m.metadata['token_count']}")

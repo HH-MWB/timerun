@@ -106,12 +106,8 @@ def _run_timed_sync_fn(
 # --- Given ---
 
 
-@given(
-    "a {kind} function that sleeps for {duration_ns:n} nanoseconds",
-)
-@given(
-    "an {kind} function that sleeps for {duration_ns:n} nanoseconds",
-)
+@given("a {kind} function that sleeps for {duration_ns:n} nanoseconds")
+@given("an {kind} function that sleeps for {duration_ns:n} nanoseconds")
 def step_given_func_sleep(
     context: Context,
     kind: str,

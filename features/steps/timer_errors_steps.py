@@ -51,6 +51,12 @@ def step_given_timer_not_entered(context: Context) -> None:
     context.timer = timerun.Timer()
 
 
+@given("an event loop where code runs with no current asyncio task")
+def step_given_event_loop_no_current_task(context: Context) -> None:
+    """Store event loop with no current task (runs from When callback)."""
+    context.loop = asyncio.new_event_loop()
+
+
 @given("a {callback_kind} callback that raises an application exception")
 @given("an {callback_kind} callback that raises an application exception")
 def step_callback_raises(context: Context, callback_kind: str) -> None:
@@ -60,14 +66,6 @@ def step_callback_raises(context: Context, callback_kind: str) -> None:
         raise CustomAppError
 
     setattr(context, f"{callback_kind}_callback", bad_callback)
-
-
-@given(
-    "an event loop where code runs with no current asyncio task",
-)
-def step_given_event_loop_no_current_task(context: Context) -> None:
-    """Store event loop with no current task (runs from When callback)."""
-    context.loop = asyncio.new_event_loop()
 
 
 # --- When ---
@@ -81,6 +79,23 @@ def step_measure_block_raises(context: Context) -> None:
             raise ValueError  # noqa: TRY301
     except ValueError as e:
         context.exception = e
+
+
+@when("I call the decorated function that raises an exception")
+def step_when_call_raising(context: Context) -> None:
+    """Call raising function under Timer(); catch exception."""
+
+    @timerun.Timer()
+    def raising() -> None:
+        raise ValueError
+
+    try:
+        raising()
+    except ValueError as e:
+        context.exception = e
+
+    context.decorated_function = raising
+    context.measurement = raising.measurements[-1]
 
 
 @when("I exit the timer")
@@ -100,23 +115,6 @@ def step_async_with_timer_no_current_task(context: Context) -> None:
     loop.call_soon(lambda: _run_timer_coro_without_task(context, loop))
     loop.run_forever()
     loop.close()
-
-
-@when("I call the decorated function that raises an exception")
-def step_when_call_raising(context: Context) -> None:
-    """Call raising function under Timer(); catch exception."""
-
-    @timerun.Timer()
-    def raising() -> None:
-        raise ValueError
-
-    try:
-        raising()
-    except ValueError as e:
-        context.exception = e
-
-    context.decorated_function = raising
-    context.measurement = raising.measurements[-1]
 
 
 # --- Then ---

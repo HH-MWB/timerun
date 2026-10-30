@@ -60,12 +60,8 @@ def _consume_sync_gen(
 # --- Given ---
 
 
-@given(
-    "a {kind} operation that runs for {duration_ns:n} nanoseconds",
-)
-@given(
-    "an {kind} operation that runs for {duration_ns:n} nanoseconds",
-)
+@given("a {kind} operation that runs for {duration_ns:n} nanoseconds")
+@given("an {kind} operation that runs for {duration_ns:n} nanoseconds")
 def step_given_operation(
     context: Context,
     kind: str,

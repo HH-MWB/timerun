@@ -68,6 +68,7 @@ toggle   = { icon = "lucide/moon", name = "Dark mode" }
 
 [project.markdown_extensions]
 admonition = {}
+md_in_html = {}
 
 [project.markdown_extensions.pymdownx]
 details      = {}

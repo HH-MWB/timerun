@@ -74,19 +74,6 @@ def step_given_span_of_duration(
 # --- When ---
 
 
-@when("I read the duration")
-def step_when_read_duration(context: Context) -> None:
-    """Read the duration property."""
-    context.read_duration = context.time_span.duration
-
-
-@when("I read the start and end values")
-def step_when_read_start_end(context: Context) -> None:
-    """Read start and end values."""
-    context.read_start = context.time_span.start
-    context.read_end = context.time_span.end
-
-
 @when("I read the duration as a timedelta")
 def step_when_read_timedelta(context: Context) -> None:
     """Read duration as timedelta."""
@@ -97,11 +84,6 @@ def step_when_read_timedelta(context: Context) -> None:
 def step_when_compare_spans(context: Context) -> None:
     """Compare two spans for equality."""
     context.spans_equal = context.time_span_a == context.time_span_b
-
-
-@when("I compare the durations of span A and span B")
-def step_when_compare_durations(_: Context) -> None:
-    """Compare durations of two spans."""
 
 
 @when("I try to create a time span from {start:n} to {end:n}")
@@ -118,7 +100,7 @@ def step_when_modify_start_value(context: Context) -> None:
     """Attempt modifying frozen start attribute; store exception."""
     try:
         context.time_span.start = 999
-    except FrozenInstanceError as exc:
+    except (AttributeError, TypeError, FrozenInstanceError) as exc:
         context.exception = exc
 
 
@@ -190,3 +172,12 @@ def step_spans_in_set_produces(context: Context, count: int = 2) -> None:
     assert len(span_set) == count, (
         f"Expected {count} elements in set, got {len(span_set)}"
     )
+
+
+@then("modifying the time span is rejected")
+def step_then_modify_time_span_rejected(context: Context) -> None:
+    """Assert an exception occurred when attempting to mutate TimeSpan."""
+    assert isinstance(
+        context.exception,
+        (AttributeError, TypeError, FrozenInstanceError),
+    ), f"Expected immutability error, got {type(context.exception).__name__}"

@@ -1,8 +1,8 @@
 Feature: Timer callbacks
 
-  As someone measuring duration,
-  I want callbacks when timing starts and ends,
-  so that I can react to measurement lifecycle events.
+  As an observability engineer,
+  I want lifecycle callbacks when timing begins and finishes,
+  so that I can propagate trace contexts and export metrics to pipelines.
 
   Scenario Outline: Lifecycle callback is invoked once with the yielded measurement
     Given an <callback_name> callback that records invocations

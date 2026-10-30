@@ -19,13 +19,6 @@ def step_given_metadata_table(context: Context) -> None:
     context.metadata = {row["key"]: row["value"] for row in context.table}
 
 
-@given("metadata with an unpickleable lock object")
-def step_metadata_unpickleable_lock(context: Context) -> None:
-    """Store metadata containing a threading.Lock."""
-    context.lock_obj = threading.Lock()
-    context.metadata = {"lock": context.lock_obj}
-
-
 @given('the first block adds metadata key "{key}" with value "{value}"')
 def step_given_metadata_add_in_first(
     context: Context,
@@ -34,6 +27,13 @@ def step_given_metadata_add_in_first(
 ) -> None:
     """First block will add key/value to metadata."""
     context.metadata_add_in_first = (key, value)
+
+
+@given("metadata with an unpickleable lock object")
+def step_metadata_unpickleable_lock(context: Context) -> None:
+    """Store metadata containing a threading.Lock."""
+    context.lock_obj = threading.Lock()
+    context.metadata = {"lock": context.lock_obj}
 
 
 # --- When ---

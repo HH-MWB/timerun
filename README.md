@@ -18,42 +18,11 @@
 
 ---
 
-TimeRun is a **single-file** Python package with **zero dependencies** beyond the standard library. It records nanosecond-accurate **wall-clock time** (`perf_counter_ns`) and **thread CPU time** (`thread_time_ns`), producing structured `Measurement` objects ready for your logs, metrics, and tracing pipelines.
-
-## Why TimeRun?
-
-When code runs slowly, **is it waiting on network/disk I/O, or burning CPU?**
-
-- `time.perf_counter()` only gives a raw float of elapsed wall time. Measuring CPU time requires manual `time.thread_time()` calls and tedious boilerplate.
-- Profilers (`cProfile`, `py-spy`) and APM agents (`Datadog`, `New Relic`) introduce binary dependencies, sampling overhead, or vendor lock-in.
-- Naive timers risk race conditions in concurrent `asyncio` tasks or multi-threaded workers.
-
-TimeRun provides clean, structured timing with sub-microsecond overhead:
-
-| Feature | Manual `time.perf_counter()` | Profilers (`cProfile`, `py-spy`) | APM Agents (`Datadog`, `New Relic`) | **TimeRun** |
-| :--- | :---: | :---: | :---: | :---: |
-| **Dependencies** | None | Extra tooling | Large binary agents | **Zero (stdlib only)** |
-| **Wall vs. CPU Breakdown** | ❌ Manual boilerplate | ⚠️ Profiling overhead | ❌ Usually wall only | **✅ Built-in & precise** |
-| **Structured Output** | ❌ Raw floats | ❌ Binary trace files | ⚠️ Proprietary format | **✅ Structured `Measurement`** |
-| **Asyncio & Thread Safe** | ❌ Race condition risk | ⚠️ Global runtime cost | ✅ Handled by agent | **✅ Task & Thread isolated** |
-| **Telemetry Hooks** | ❌ Build it yourself | ❌ Offline analysis only | ⚠️ Vendor locked | **✅ Agnostic (`on_end`)** |
-| **Footprint** | 0 LOC | Heavy | Large background daemon | **Single file (~500 LOC)** |
-
-## Installation
-
-From [PyPI](https://pypi.org/project/timerun/):
-
-```bash
-pip install timerun
-```
-
-*Requires Python 3.10+.*
-
 ## Quickstart
 
 ### 1. Measure Code Blocks (Wall vs. CPU)
 
-Wrap any code block in `with Timer() as m:` (or `async with Timer() as m:` for async code). On exit, `m.wall_time` and `m.cpu_time` are immediately available:
+Wrap any block in `with Timer() as m:` (or `async with Timer() as m:`). On exit, `m.wall_time` and `m.cpu_time` are immediately available:
 
 ```python
 import time
@@ -71,7 +40,7 @@ print("Compute (CPU):  ", m.cpu_time.timedelta)  # e.g., 0:00:00.005110
 
 ### 2. Time Functions and Generators
 
-Use `@Timer()` on sync or async functions. The wrapped function keeps a bounded deque of measurements:
+Use `@Timer()` on sync or async functions. The wrapped function retains a bounded deque of measurements:
 
 ```python
 from timerun import Timer
@@ -85,13 +54,11 @@ def process_batch(items):
 process_batch([1, 2, 3])
 
 last = process_batch.measurements[-1]
-print("Duration:", last.wall_time.timedelta)
-print("Duration (ns):", last.wall_time.duration)
+print("Wall time:", last.wall_time.timedelta)
+print("CPU time: ", last.cpu_time.timedelta)
 ```
 
-*Supports sync/async functions and generators (times full generator consumption).*
-
-### 3. Stream to Logs & Observability (3 Lines)
+### 3. Stream to Logs & Observability
 
 Use `on_end` to ship timings directly to your logs, OpenTelemetry, Prometheus, or Datadog without adding vendor dependencies to your core logic:
 
@@ -115,19 +82,46 @@ with Timer(
     pass  # your operation
 ```
 
-## Highlights
+## Installation
 
-- **Zero dependencies:** Standard library only (`time`, `dataclasses`, `contextvars`).
-- **Single file:** Easy to audit, vendor, or copy (`timerun.py`).
-- **Asyncio & thread safe:** Native `ContextVar` stack isolation prevents crosstalk across concurrent tasks.
-- **Sub-microsecond overhead:** Slotted dataclasses and integer nanoseconds keep overhead under ~0.4 µs.
-- **100% test coverage:** Verified with Behavior-Driven Development (BDD) test suites.
+```bash
+pip install timerun
+```
+
+*Requires Python 3.10+.*
+
+## Why TimeRun?
+
+When code runs slowly, **is it waiting on network/disk I/O, or burning CPU?**
+
+- `time.perf_counter()` only gives a raw float of elapsed wall time. Measuring CPU time requires manual `time.thread_time()` calls and boilerplate.
+- Profilers (`cProfile`, `py-spy`) and APM agents (`Datadog`, `New Relic`) introduce binary dependencies, sampling overhead, or vendor lock-in.
+- Naive timing patterns risk race conditions and crosstalk in concurrent `asyncio` tasks or multi-threaded workers.
+
+TimeRun provides clean, structured timing with sub-microsecond overhead:
+
+| Feature | Manual `time.perf_counter()` | Profilers (`cProfile`, `py-spy`) | APM Agents (`Datadog`, `New Relic`) | **TimeRun** |
+| :--- | :---: | :---: | :---: | :---: |
+| **Dependencies** | None | Extra tooling | Large binary agents | **Zero (stdlib only)** |
+| **Wall vs. CPU Breakdown** | ❌ Manual boilerplate | ⚠️ Profiling overhead | ❌ Usually wall only | **✅ Built-in & precise** |
+| **Structured Output** | ❌ Raw floats | ❌ Binary trace files | ⚠️ Proprietary format | **✅ Structured `Measurement`** |
+| **Asyncio & Thread Safe** | ❌ Race condition risk | ⚠️ Global runtime cost | ✅ Handled by agent | **✅ Task & Thread isolated** |
+| **Telemetry Hooks** | ❌ Build it yourself | ❌ Offline analysis only | ⚠️ Vendor locked | **✅ Agnostic (`on_end`)** |
+| **Footprint** | 0 LOC | Heavy | Large background daemon | **Single file (~500 LOC)** |
+
+## Key Capabilities
+
+- **Zero Supply-Chain Risk:** Pure Python standard library only (`time`, `dataclasses`, `contextvars`); vendorable as a single file (`timerun.py`).
+- **Context Isolation:** Native `ContextVar` stacks ensure concurrent `asyncio` tasks and threads never mix up measurements.
+- **Sub-Microsecond Overhead:** Slotted dataclasses and integer nanoseconds keep internal overhead under ~0.4 µs.
+- **Full Async & Generator Support:** Accurately times coroutines, synchronous generators, and asynchronous streaming generators across full iteration.
+- **100% Test Coverage:** Verified with comprehensive Behavior-Driven Development (BDD) test suites.
 
 ## Documentation
 
-- **[Documentation Site](https://hh-mwb.github.io/timerun/)** — Getting started and quickstart.
+- **[Documentation Site](https://hh-mwb.github.io/timerun/)** — Tutorials, concepts, and guides.
 - **[API Guide](https://hh-mwb.github.io/timerun/guide/)** — In-depth reference for `Timer`, `Measurement`, and `TimeSpan`.
-- **[Cookbooks](https://hh-mwb.github.io/timerun/cookbook/)** — Real-world recipes for FastAPI, OpenTelemetry, Structlog, and LLM token streaming.
+- **[Cookbooks](https://hh-mwb.github.io/timerun/cookbook/)** — Real-world recipes for FastAPI, OpenTelemetry, Structlog, and LLM streaming.
 
 ## Contributing
 

@@ -224,9 +224,7 @@ def step_when_run_both_tasks_concurrently(context: Context) -> None:
     context.second_measurement = results[1]
 
 
-@when(
-    "I run both child tasks concurrently from within the active outer timer",
-)
+@when("I run both child tasks concurrently from within the active outer timer")
 def step_when_run_child_tasks_within_active_timer(context: Context) -> None:
     """Execute concurrent child tasks from within an active timer block."""
     timer = context.shared_timer
