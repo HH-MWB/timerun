@@ -90,14 +90,15 @@ CI (on pull requests and pushes to `main`) runs: **lint** (pre-commit) → **tes
 
 We expect (all run via `make lint`):
 
-- **pre-commit-hooks** — Trailing whitespace, line endings, BOM, and YAML/TOML syntax checks
+- **pre-commit-hooks** — Trailing whitespace, line endings, BOM, and TOML syntax checks
 - **yamllint** — YAML style and syntax checking for workflow and configuration files
-- **Ruff** — Code formatting (`ruff-format`) and linting (`ruff-check`)
+- **actionlint** — Static checking of GitHub Actions workflow files (.github/workflows/)
 - **codespell** — Spell checking across documentation, comments, and source files
-- **mypy** — Static type checking on `timerun.py`; use type hints on public APIs
+- **Ruff** — Code formatting (`ruff-format`) and linting (`ruff-check`)
 - **Pyright** — Static type checking on `timerun.py`; strict type verification
-- **Pylint** — Lint and style on `timerun.py`; docstrings expected on public functions, classes, and modules
+- **mypy** — Static type checking on `timerun.py`; use type hints on public APIs
 - **Bandit** — Security issue detection on Python source code
+- **Pylint** — Lint and style on `timerun.py`; docstrings expected on public functions, classes, and modules
 - **Semgrep** — Security and bug pattern detection (Python ruleset)
 
 ## Project Structure
