@@ -59,10 +59,16 @@ PyPI = "https://pypi.org/project/timerun"
 
 [dependency-groups]
 dev = [
+    { include-group = "test" },
+    { include-group = "audit" },
+    "pre-commit",
+]
+test = [
     "behave",
     "coverage",
+]
+audit = [
     "pip-audit",
-    "pre-commit",
 ]
 docs = [
     "zensical",

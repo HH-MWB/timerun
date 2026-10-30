@@ -16,6 +16,6 @@ Fixes #
 
 ## Checklist
 
-- [ ] I have run `make lint test` and both pass
+- [ ] I have run `make check` and all pass
 - [ ] For new or changed behavior, I have added or updated BDD scenarios in `features/`
 - [ ] I have updated the documentation accordingly (if applicable)
