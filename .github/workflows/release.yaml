@@ -6,7 +6,7 @@ on:
   release:
     types:
       - published
-      - edited
+      - released
 
 permissions:
   contents: read
@@ -31,6 +31,24 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Verify package version matches release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python -c '
+          import os, sys, timerun
+
+          raw_tag = os.environ.get("RELEASE_TAG", "")
+          tag = raw_tag.lstrip("v")
+          if timerun.__version__ != tag:
+              msg = (
+                  f"Version mismatch: package {timerun.__version__} "
+                  f"!= tag {raw_tag}"
+              )
+              sys.exit(msg)
+          print(f"Verified: {timerun.__version__} matches tag {raw_tag}")
+          '
+
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip setuptools
@@ -54,6 +72,7 @@ jobs:
     if: github.event.release.prerelease
     runs-on: ubuntu-latest
     permissions:
+      attestations: write
       contents: read
       id-token: write
     environment:
@@ -78,6 +97,7 @@ jobs:
     if: '!github.event.release.prerelease'
     runs-on: ubuntu-latest
     permissions:
+      attestations: write
       contents: read
       id-token: write
     environment:

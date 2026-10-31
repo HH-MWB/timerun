@@ -184,15 +184,15 @@ Releases are driven by **GitHub Releases** and publish to **TestPyPI** first, th
 
 1. **Bump version** in `timerun.py` (`__version__`) and commit to `main`.
 2. **Create a GitHub Release** (Releases → Draft a new release):
-   - Choose or create a tag (e.g. `v1.0.0`) from `main`.
+   - Choose or create a tag (e.g. `v1.0.0`) from `main`. **Note:** The tag name must match `v<__version__>` (e.g. `v0.7.0` for `__version__ = "0.7.0"`), or the workflow's verification guard will fail.
    - Check **“This is a pre-release”**.
    - Add release notes and publish.
-3. The **release workflow** runs and publishes the package to **TestPyPI** only.
+3. The **release workflow** runs, verifies version alignment, and publishes the package to **TestPyPI** only.
 4. **Test** the package from TestPyPI (e.g. `pip install -i https://test.pypi.org/simple/ timerun==1.0.0`).
 5. When satisfied, **edit the release** on GitHub: uncheck “This is a pre-release” and save.
-6. The workflow runs again and publishes to **PyPI**.
+6. The workflow runs again and publishes to **PyPI** with signed PEP 740 build provenance attestations.
 
-The same workflow handles both events: `release: types: [published, edited]`. Pre-release → TestPyPI; full release → PyPI.
+The same workflow handles both events: `release: types: [published, released]`. Pre-release → TestPyPI; full release → PyPI.
 
 ## License
 

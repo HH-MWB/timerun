@@ -2,30 +2,26 @@
 
 ## Supported Versions
 
-We actively support security updates for the current version of this project. Please ensure you're using the latest version.
+We provide security updates exclusively for the latest release on PyPI. Please ensure you are running the latest version of `timerun` before reporting an issue.
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please **do not** open a public issue. Instead, please report it using GitHub Security Advisories:
+If you discover a security vulnerability, please **do not** open a public issue. Submit a private report via [GitHub Security Advisory](https://github.com/HH-MWB/timerun/security/advisories/new).
 
-1. Navigate to the [Security tab](https://github.com/HH-MWB/timerun/security) of this repository
-2. Click on "Advisories"
-3. Click "Report a vulnerability" to create a private security advisory
+Please include:
 
-Alternatively, you can directly access the [Report a vulnerability](https://github.com/HH-MWB/timerun/security/advisories/new) page.
+- A description of the vulnerability and its potential impact.
+- Reproducible steps or a minimal proof of concept (PoC).
+- Any proposed fix or mitigation (if available).
 
-Please include the following information in your report:
+## Response & Coordinated Disclosure
 
-- Description of the vulnerability
-- Steps to reproduce the issue
-- Potential impact
-- Suggested fix (if any)
+- **Acknowledgement**: We will acknowledge receipt within **48 hours**.
+- **Assessment**: We will evaluate severity and provide an update within **7 days**.
+- **Resolution**: Once a fix is verified, we will release a patch and publish a GitHub Security Advisory crediting you (unless you prefer to remain anonymous).
 
-We will acknowledge receipt of your report within 48 hours and provide an update on the status of the vulnerability within 7 days.
+## Supply Chain Security & Provenance
 
-## Disclosure Policy
-
-- We will acknowledge receipt of your vulnerability report
-- We will confirm the issue and assess its severity
-- We will work on a fix and keep you informed of progress
-- Once a fix is ready, we will release it and credit you (unless you prefer to remain anonymous)
+- **Trusted Publishing (OIDC)**: PyPI and TestPyPI distributions are published strictly via GitHub Actions using OpenID Connect (OIDC). No static API tokens or passwords are stored in the repository.
+- **Digital Attestations (PEP 740)**: PyPI releases include cryptographically signed build provenance, verifying that artifacts originate from this repository and workflow run.
+- **Zero Runtime Dependencies**: `timerun` relies solely on the Python standard library, eliminating third-party runtime supply chain risks.
